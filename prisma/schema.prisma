@@ -1,0 +1,68 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  name         String
+  passwordHash String
+  avatar       String?
+  timezone     String    @default("UTC")
+  audioPref    String    @default("sub")
+  theme        String    @default("dark")
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  watchlist    Watchlist[]
+  videos       PersonalVideo[]
+}
+
+model Watchlist {
+  id        String   @id @default(cuid())
+  userId    String
+  animeId   Int
+  status    String   @default("plan_to_watch")
+  progress  Int      @default(0)
+  score     Int?
+  addedAt   DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, animeId])
+}
+
+model PersonalVideo {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String
+  driveUrl  String
+  thumbnail String?
+  duration  String?
+  addedAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model StreamingLink {
+  id        String   @id @default(cuid())
+  animeId   Int
+  episode   Int      @default(1)
+  platform  String
+  url       String
+  isPrimary Boolean  @default(false)
+  addedAt   DateTime @default(now())
+
+  @@unique([animeId, episode, platform])
+}
+
+model ApiCache {
+  key       String   @id
+  data      String
+  expiresAt DateTime
+}

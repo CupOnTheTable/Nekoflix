@@ -1,36 +1,163 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# AniStream - Anime Streaming Platform
+
+A modern anime streaming web application built with Next.js 16, TypeScript, Tailwind CSS v4, Prisma, and SQLite.
+
+## Features
+
+- **Home** — Hero section, trending carousel (10 titles, 5 visible, auto-advance every 10s), content rows
+- **Search & Browse** — Full-text search with 8+ combinable filters, URL-synced state, pagination
+- **Random Picker** — Animated 3D die, pre-roll constraints (genre, score, format, status)
+- **Watchlist** — Auth-gated, 5 status tabs, episode progress, grid/list view, bulk actions
+- **Schedule** — Daily airing schedule with live countdowns, timezone-aware, weekday switcher
+- **Authentication** — Email/password registration, login, session cookies
+- **Theme** — Dark mode by default, light mode toggle, persisted preference
+- **Accessibility** — WCAG 2.1 AA: keyboard nav, focus states, ARIA labels, reduced-motion support
+- **Responsive** — Mobile-first, works at 375px, 768px, 1280px, 1920px
+
+## Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
+| Framework | Next.js 16 (App Router) |
+| Language | TypeScript |
+| Styling | Tailwind CSS v4 |
+| Database | Prisma + SQLite |
+| Auth | Cookie-based sessions with bcryptjs |
+| Icons | Lucide React |
+| Utilities | clsx, date-fns |
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
+
+- Node.js 20.9+
+- npm
+
+### Setup
 
 ```bash
+# Clone the repository
+git clone <repo-url>
+cd anime-stream
+
+# Install dependencies
+npm install
+
+# Initialize database
+npx prisma generate
+npx prisma db push
+
+# Start development server
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Environment Variables
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Create a `.env` file (already included with defaults):
 
-## Learn More
+```env
+DATABASE_URL="file:./dev.db"
+AUTH_SECRET="dev-secret-change-in-production"
+NEXTAUTH_URL="http://localhost:3000"
+```
 
-To learn more about Next.js, take a look at the following resources:
+## Project Structure
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```
+src/
+├── app/
+│   ├── api/
+│   │   ├── anime/route.ts          # Search/filter anime
+│   │   ├── auth/
+│   │   │   ├── login/route.ts      # Login endpoint
+│   │   │   ├── logout/route.ts     # Logout endpoint
+│   │   │   ├── me/route.ts         # Current user endpoint
+│   │   │   └── register/route.ts   # Registration endpoint
+│   │   └── watchlist/route.ts      # Watchlist CRUD
+│   ├── auth/
+│   │   ├── login/page.tsx          # Login page
+│   │   └── register/page.tsx       # Registration page
+│   ├── random/page.tsx             # Random anime picker
+│   ├── schedule/page.tsx           # Airing schedule
+│   ├── search/page.tsx             # Search & browse
+│   ├── watchlist/page.tsx          # Personal watchlist
+│   ├── globals.css                 # Design system & tokens
+│   ├── layout.tsx                  # Root layout
+│   └── page.tsx                    # Home page
+├── components/
+│   ├── anime/
+│   │   ├── AnimeCard.tsx           # Reusable anime card
+│   │   ├── Carousel.tsx            # Infinite auto-advancing carousel
+│   │   ├── Die.tsx                 # 3D animated die
+│   │   ├── EmptyState.tsx          # Empty state component
+│   │   ├── FilterPanel.tsx         # Search filter panel
+│   │   ├── HomeClient.tsx          # Home page client wrapper
+│   │   └── ScheduleRow.tsx         # Schedule entry row
+│   ├── layout/
+│   │   ├── Header.tsx              # Navigation header
+│   │   └── ThemeProvider.tsx       # Theme context provider
+│   └── ui/
+│       ├── Badge.tsx               # Badge/chip component
+│       ├── Button.tsx              # Button component
+│       ├── Input.tsx               # Input component
+│       ├── Modal.tsx               # Modal dialog
+│       └── Skeleton.tsx            # Loading skeleton
+├── lib/
+│   ├── anime-data.ts               # 78 anime mock database
+│   ├── auth.ts                     # Authentication helpers
+│   ├── prisma.ts                   # Prisma client singleton
+│   └── utils.ts                    # Utility functions
+└── types/
+    ├── bcryptjs.d.ts               # Type declarations
+    └── index.ts                    # Shared types
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Database Schema
 
-## Deploy on Vercel
+```prisma
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  name         String
+  passwordHash String
+  avatar       String?
+  timezone     String    @default("UTC")
+  audioPref    String    @default("sub")
+  theme        String    @default("dark")
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  watchlist    Watchlist[]
+}
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+model Watchlist {
+  id        String   @id @default(cuid())
+  userId    String
+  animeId   Int
+  status    String   @default("plan_to_watch")
+  progress  Int      @default(0)
+  score     Int?
+  addedAt   DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([userId, animeId])
+}
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Scripts
+
+```bash
+npm run dev          # Start development server
+npm run build        # Production build
+npm run start        # Start production server
+npm run lint         # Run ESLint
+```
+
+## Content Licensing
+
+This application uses mock anime data for demonstration purposes. In production, the operator should ensure all streamed or linked content is properly licensed for distribution. Where licensing is not in place, the player should be stubbed or linked to official providers.
+
+## License
+
+MIT

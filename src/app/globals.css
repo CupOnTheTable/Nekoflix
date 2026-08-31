@@ -1,26 +1,267 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-surface-hover: var(--surface-hover);
+  --color-border: var(--border-color);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-muted: var(--muted);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+:root {
+  --background: #09090b;
+  --foreground: #fafafa;
+  --surface: #18181b;
+  --surface-hover: #27272a;
+  --border-color: #27272a;
+  --accent: #e94560;
+  --accent-hover: #ff6b81;
+  --muted: #71717a;
+}
+
+.midnight {
+  --background: #0a0e1a;
+  --foreground: #e8eaf0;
+  --surface: #111827;
+  --surface-hover: #1e293b;
+  --border-color: #1e293b;
+  --accent: #818cf8;
+  --accent-hover: #a5b4fc;
+  --muted: #64748b;
+}
+
+.abyss {
+  --background: #000000;
+  --foreground: #e4e4e7;
+  --surface: #0a0a0a;
+  --surface-hover: #171717;
+  --border-color: #171717;
+  --accent: #f43f5e;
+  --accent-hover: #fb7185;
+  --muted: #52525b;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+@keyframes kuro-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes kuro-pulse {
+  0%, 100% { opacity: 0.4; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.1); }
+}
+
+@keyframes kuro-bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+@keyframes kuro-fadeInUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes kuro-fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes kuro-scaleIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes kuro-slideInRight {
+  from { opacity: 0; transform: translateX(20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes kuro-slideInLeft {
+  from { opacity: 0; transform: translateX(-20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.kuro-animate-in {
+  animation: kuro-fadeInUp 0.4s ease-out both;
+}
+
+.kuro-animate-in-delay-1 {
+  animation: kuro-fadeInUp 0.4s ease-out 0.1s both;
+}
+
+.kuro-animate-in-delay-2 {
+  animation: kuro-fadeInUp 0.4s ease-out 0.2s both;
+}
+
+.kuro-animate-in-delay-3 {
+  animation: kuro-fadeInUp 0.4s ease-out 0.3s both;
+}
+
+.kuro-stagger > * {
+  animation: kuro-fadeInUp 0.4s ease-out both;
+}
+
+.kuro-stagger > *:nth-child(1) { animation-delay: 0ms; }
+.kuro-stagger > *:nth-child(2) { animation-delay: 50ms; }
+.kuro-stagger > *:nth-child(3) { animation-delay: 100ms; }
+.kuro-stagger > *:nth-child(4) { animation-delay: 150ms; }
+.kuro-stagger > *:nth-child(5) { animation-delay: 200ms; }
+.kuro-stagger > *:nth-child(6) { animation-delay: 250ms; }
+.kuro-stagger > *:nth-child(7) { animation-delay: 300ms; }
+.kuro-stagger > *:nth-child(8) { animation-delay: 350ms; }
+.kuro-stagger > *:nth-child(9) { animation-delay: 400ms; }
+.kuro-stagger > *:nth-child(10) { animation-delay: 450ms; }
+.kuro-stagger > *:nth-child(11) { animation-delay: 500ms; }
+.kuro-stagger > *:nth-child(12) { animation-delay: 550ms; }
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+::selection {
+  background-color: color-mix(in srgb, var(--accent) 30%, transparent);
+  color: var(--foreground);
+}
+
+::-moz-selection {
+  background-color: color-mix(in srgb, var(--accent) 30%, transparent);
+  color: var(--foreground);
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--background);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--surface-hover);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--muted);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--surface-hover) var(--background);
+}
+
+*:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+a:focus-visible,
+button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+}
+
+input,
+textarea,
+select {
+  color: var(--foreground);
+  background-color: var(--surface);
+  border: 1px solid var(--border-color);
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  border-color: var(--accent);
+  outline: none;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 25%, transparent);
+}
+
+::placeholder {
+  color: var(--muted);
+}
+
+.glass-effect {
+  background-color: color-mix(in srgb, var(--surface) 60%, transparent);
+  backdrop-filter: blur(12px) saturate(150%);
+  -webkit-backdrop-filter: blur(12px) saturate(150%);
+  border: 1px solid color-mix(in srgb, var(--border-color) 50%, transparent);
+}
+
+.card-hover {
+  transition: transform 200ms ease, box-shadow 200ms ease,
+    border-color 200ms ease;
+}
+
+.card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px -5px rgba(0, 0, 0, 0.3),
+    0 4px 10px -6px rgba(0, 0, 0, 0.2);
+  border-color: var(--accent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card-hover {
+    transition: none;
+  }
+
+  .card-hover:hover {
+    transform: none;
+  }
+}
+
+.line-clamp-1 {
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.line-clamp-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
