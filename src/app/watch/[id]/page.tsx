@@ -37,7 +37,7 @@ interface AniListFallback {
 function cleanTitle(t?: string | null): string {
   if (!t) return "";
   const trimmed = t.trim();
-  if (!trimmed || trimmed === "Untitled" || trimmed === "undefined") return "";
+  if (!trimmed || trimmed === "Untitled" || trimmed === "undefined" || trimmed.toLowerCase() === "unknown") return "";
   return trimmed;
 }
 

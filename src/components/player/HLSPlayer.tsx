@@ -372,8 +372,8 @@ export default function HLSPlayer({
       )}
 
       {showControls && (
-        <div className="absolute bottom-0 left-0 right-0 z-10 bg-gradient-to-t from-black/90 via-black/50 to-transparent p-4 pt-16 transition-opacity">
-          <div className="mb-2 flex items-center gap-2">
+        <div className="absolute bottom-0 left-0 right-0 z-10 bg-gradient-to-t from-black/90 via-black/50 to-transparent p-4 pt-16 transition-opacity pointer-events-none">
+          <div className="mb-2 flex items-center gap-2 pointer-events-auto">
             <div className="h-1.5 flex-1 cursor-pointer overflow-hidden rounded-full bg-zinc-700 group/progress" onClick={seek}>
               <div
                 className="h-full bg-gradient-to-r from-purple-500 to-pink-500 transition-all group-hover/progress:h-full"
@@ -385,7 +385,7 @@ export default function HLSPlayer({
             </span>
           </div>
 
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between pointer-events-auto">
             <div className="flex items-center gap-1">
               {hasPrevious && (
                 <button onClick={onPrevious} className="rounded-lg p-2 text-zinc-300 hover:bg-white/10 hover:text-white transition-colors">
