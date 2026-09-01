@@ -49,21 +49,20 @@ export default function HLSPlayer({
   const [subtitles, setSubtitles] = useState<Subtitle[]>([]);
   const [activeTrack, setActiveTrack] = useState<number>(-1);
   const [showSettings, setShowSettings] = useState(false);
-  const [hasIntro, setHasIntro] = useState(false);
-  const [hasOutro, setHasOutro] = useState(false);
   const [showSkipIntro, setShowSkipIntro] = useState(false);
   const [showSkipOutro, setShowSkipOutro] = useState(false);
   const controlsTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const introEndRef = useRef(0);
-  const outroStartRef = useRef(0);
+
+  const introRef = useRef({ start: 0, end: 0 });
+  const outroRef = useRef({ start: 0, end: 0 });
 
   const loadStream = useCallback(async () => {
     setLoading(true);
     setError(null);
     setShowSkipIntro(false);
     setShowSkipOutro(false);
-    setHasIntro(false);
-    setHasOutro(false);
+    introRef.current = { start: 0, end: 0 };
+    outroRef.current = { start: 0, end: 0 };
 
     try {
       const res = await fetch(`/api/stream?embedId=${embedId}&lang=${language}`);
@@ -77,21 +76,13 @@ export default function HLSPlayer({
 
       setSubtitles(data.subtitles || []);
 
-      const introStart = data.stream.intro?.start ?? 0;
-      const introEnd = data.stream.intro?.end ?? 0;
-      const outroStart = data.stream.outro?.start ?? 0;
-      const outroEnd = data.stream.outro?.end ?? 0;
+      const iS = data.stream.intro?.start ?? 0;
+      const iE = data.stream.intro?.end ?? 0;
+      const oS = data.stream.outro?.start ?? 0;
+      const oE = data.stream.outro?.end ?? 0;
 
-      introEndRef.current = introEnd;
-      outroStartRef.current = outroStart;
-
-      const validIntro = introStart > 0 && introEnd > introStart;
-      const validOutro = outroStart > 0 && outroEnd > outroStart;
-
-      setHasIntro(validIntro);
-      setHasOutro(validOutro);
-
-      if (validIntro) setShowSkipIntro(true);
+      if (iS > 0 && iE > iS) introRef.current = { start: iS, end: iE };
+      if (oS > 0 && oE > oS) outroRef.current = { start: oS, end: oE };
 
       const video = videoRef.current;
       if (!video) return;
@@ -101,8 +92,6 @@ export default function HLSPlayer({
         hlsRef.current = null;
       }
 
-      const streamUrl = data.stream.url;
-
       const Hls = (await import("hls.js")).default;
       const hls = new Hls({
         enableWorker: true,
@@ -111,7 +100,7 @@ export default function HLSPlayer({
       });
       hlsRef.current = hls;
 
-      hls.loadSource(streamUrl);
+      hls.loadSource(data.stream.url);
       hls.attachMedia(video);
 
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
@@ -119,9 +108,8 @@ export default function HLSPlayer({
         video.play().catch(() => {});
 
         if (data.subtitles.length > 0) {
-          const loadSubtitles = async () => {
-            for (let i = 0; i < data.subtitles.length; i++) {
-              const sub = data.subtitles[i];
+          (async () => {
+            for (const sub of data.subtitles) {
               try {
                 const subRes = await fetch(sub.url);
                 const vtt = await subRes.text();
@@ -135,27 +123,22 @@ export default function HLSPlayer({
                 if (sub.default) trackEl.default = true;
                 video.appendChild(trackEl);
               } catch {
-                // skip failed subtitle
+                // skip
               }
             }
             if (video.textTracks.length > 0) {
               const defaultIdx = data.subtitles.findIndex((s: Subtitle) => s.default);
               for (let t = 0; t < video.textTracks.length; t++) {
-                if (defaultIdx >= 0 && t === defaultIdx) {
-                  video.textTracks[t].mode = "showing";
-                  setActiveTrack(t);
-                } else {
-                  video.textTracks[t].mode = "hidden";
-                }
+                video.textTracks[t].mode = (defaultIdx >= 0 && t === defaultIdx) ? "showing" : "hidden";
+                if (defaultIdx >= 0 && t === defaultIdx) setActiveTrack(t);
               }
             }
-          };
-          loadSubtitles();
+          })();
         }
       });
 
-      hls.on(Hls.Events.ERROR, (_: unknown, errData: { fatal: boolean; type: string }) => {
-        if (errData.fatal) {
+      hls.on(Hls.Events.ERROR, (_: unknown, d: { fatal: boolean }) => {
+        if (d.fatal) {
           setError("Stream could not be loaded");
           setLoading(false);
         }
@@ -179,59 +162,74 @@ export default function HLSPlayer({
     const video = videoRef.current;
     if (!video) return;
 
+    const checkSkipButtons = () => {
+      const ct = video.currentTime;
+      const intro = introRef.current;
+      const outro = outroRef.current;
+
+      if (intro.start > 0) {
+        setShowSkipIntro(ct >= intro.start && ct <= intro.end);
+      }
+      if (outro.start > 0) {
+        setShowSkipOutro(ct >= outro.start && ct <= outro.end);
+      }
+    };
+
     const onPlay = () => setIsPlaying(true);
     const onPause = () => setIsPlaying(false);
     const onTimeUpdate = () => {
       if (video.duration) {
-        const ct = video.currentTime;
-        setProgress((ct / video.duration) * 100);
-        setCurrentTime(formatTime(ct));
+        setProgress((video.currentTime / video.duration) * 100);
+        setCurrentTime(formatTime(video.currentTime));
         setDuration(formatTime(video.duration));
-
-        if (hasIntro) {
-          setShowSkipIntro(ct < introEndRef.current);
-        }
-        if (hasOutro) {
-          setShowSkipOutro(ct >= outroStartRef.current);
-        }
       }
+      checkSkipButtons();
     };
+    const onSeeked = () => checkSkipButtons();
 
     video.addEventListener("play", onPlay);
     video.addEventListener("pause", onPause);
     video.addEventListener("timeupdate", onTimeUpdate);
+    video.addEventListener("seeked", onSeeked);
 
     return () => {
       video.removeEventListener("play", onPlay);
       video.removeEventListener("pause", onPause);
       video.removeEventListener("timeupdate", onTimeUpdate);
+      video.removeEventListener("seeked", onSeeked);
     };
-  }, [hasIntro, hasOutro]);
+  }, []);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const video = videoRef.current;
       if (!video) return;
 
-      if (e.key === "ArrowLeft") {
-        e.preventDefault();
-        video.currentTime = Math.max(0, video.currentTime - 10);
-        setShowControls(true);
-      } else if (e.key === "ArrowRight") {
-        e.preventDefault();
-        video.currentTime = Math.min(video.duration || 0, video.currentTime + 10);
-        setShowControls(true);
-      } else if (e.key === " " || e.key === "k") {
-        e.preventDefault();
-        if (video.paused) video.play();
-        else video.pause();
-      } else if (e.key === "f") {
-        e.preventDefault();
-        toggleFullscreen();
-      } else if (e.key === "m") {
-        e.preventDefault();
-        video.muted = !video.muted;
-        setIsMuted(video.muted);
+      switch (e.key) {
+        case "ArrowLeft":
+          e.preventDefault();
+          video.currentTime = Math.max(0, video.currentTime - 10);
+          setShowControls(true);
+          break;
+        case "ArrowRight":
+          e.preventDefault();
+          video.currentTime = Math.min(video.duration || 0, video.currentTime + 10);
+          setShowControls(true);
+          break;
+        case " ":
+        case "k":
+          e.preventDefault();
+          video.paused ? video.play() : video.pause();
+          break;
+        case "f":
+          e.preventDefault();
+          toggleFullscreen();
+          break;
+        case "m":
+          e.preventDefault();
+          video.muted = !video.muted;
+          setIsMuted(video.muted);
+          break;
       }
     };
 
@@ -248,8 +246,7 @@ export default function HLSPlayer({
   const togglePlay = () => {
     const v = videoRef.current;
     if (!v) return;
-    if (v.paused) v.play();
-    else v.pause();
+    v.paused ? v.play() : v.pause();
   };
 
   const toggleMute = () => {
@@ -275,14 +272,13 @@ export default function HLSPlayer({
     const v = videoRef.current;
     if (!v || !v.duration) return;
     const rect = e.currentTarget.getBoundingClientRect();
-    const pct = (e.clientX - rect.left) / rect.width;
-    v.currentTime = pct * v.duration;
+    v.currentTime = ((e.clientX - rect.left) / rect.width) * v.duration;
   };
 
   const skipIntro = () => {
     const v = videoRef.current;
     if (!v) return;
-    v.currentTime = introEndRef.current || 90;
+    v.currentTime = introRef.current.end;
     setShowSkipIntro(false);
   };
 
@@ -308,9 +304,7 @@ export default function HLSPlayer({
     const v = videoRef.current;
     if (!v) return;
     if (idx === -1) {
-      for (let i = 0; i < v.textTracks.length; i++) {
-        v.textTracks[i].mode = "hidden";
-      }
+      for (let i = 0; i < v.textTracks.length; i++) v.textTracks[i].mode = "hidden";
       setActiveTrack(-1);
     } else {
       const targetLabel = subtitles[idx]?.label;
@@ -328,10 +322,7 @@ export default function HLSPlayer({
         <AlertCircle className="h-12 w-12 text-red-500 mb-3" />
         <p className="text-sm text-zinc-400 mb-2">{error}</p>
         {hasNext && (
-          <button
-            onClick={onNext}
-            className="flex items-center gap-2 rounded-lg bg-purple-600 px-4 py-2 text-sm text-white hover:bg-purple-500 mt-3"
-          >
+          <button onClick={onNext} className="flex items-center gap-2 rounded-lg bg-purple-600 px-4 py-2 text-sm text-white hover:bg-purple-500 mt-3">
             Next Episode <ChevronRight className="h-4 w-4" />
           </button>
         )}
