@@ -176,7 +176,6 @@ export default function Carousel({ animeList, onAddToWatchlist }: CarouselProps)
             >
               <AnimeCard
                 anime={anime}
-                onAddToWatchlist={onAddToWatchlist}
               />
             </div>
           ))}

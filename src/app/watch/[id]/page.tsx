@@ -264,7 +264,7 @@ export default function WatchPage() {
         <div className="px-4 pb-8">
           <div className="mx-auto max-w-5xl">
             <h2 className="mb-3 text-lg font-bold text-foreground">Episodes</h2>
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 kuro-stagger">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
               {series.episodes.map((ep) => {
                 const hasSub = !!ep.embed_url?.sub;
                 const hasDub = !!ep.embed_url?.dub;
