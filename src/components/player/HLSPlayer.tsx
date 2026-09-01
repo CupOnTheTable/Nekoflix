@@ -1,7 +1,10 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Play, Pause, ChevronLeft, ChevronRight, Volume2, VolumeX, Maximize, Minimize, Settings, Loader2, AlertCircle, SkipForward, SkipBack } from "lucide-react";
+import {
+  Play, Pause, ChevronLeft, ChevronRight, Volume2, VolumeX,
+  Maximize, Minimize, Settings, AlertCircle, SkipForward,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Subtitle {
@@ -12,7 +15,6 @@ interface Subtitle {
 
 interface HLSPlayerProps {
   embedId: string;
-  embedUrl?: string;
   language?: "sub" | "dub";
   title?: string;
   onNext?: () => void;
@@ -24,7 +26,6 @@ interface HLSPlayerProps {
 
 export default function HLSPlayer({
   embedId,
-  embedUrl,
   language = "sub",
   title,
   onNext,
@@ -48,17 +49,21 @@ export default function HLSPlayer({
   const [subtitles, setSubtitles] = useState<Subtitle[]>([]);
   const [activeTrack, setActiveTrack] = useState<number>(-1);
   const [showSettings, setShowSettings] = useState(false);
-  const [introTimes, setIntroTimes] = useState<{ start: number; end: number }>({ start: 0, end: 0 });
-  const [outroTimes, setOutroTimes] = useState<{ start: number; end: number }>({ start: 0, end: 0 });
+  const [hasIntro, setHasIntro] = useState(false);
+  const [hasOutro, setHasOutro] = useState(false);
   const [showSkipIntro, setShowSkipIntro] = useState(false);
   const [showSkipOutro, setShowSkipOutro] = useState(false);
   const controlsTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const introTimesRef = useRef<{ start: number; end: number }>({ start: 0, end: 0 });
-  const outroTimesRef = useRef<{ start: number; end: number }>({ start: 0, end: 0 });
+  const introEndRef = useRef(0);
+  const outroStartRef = useRef(0);
 
   const loadStream = useCallback(async () => {
     setLoading(true);
     setError(null);
+    setShowSkipIntro(false);
+    setShowSkipOutro(false);
+    setHasIntro(false);
+    setHasOutro(false);
 
     try {
       const res = await fetch(`/api/stream?embedId=${embedId}&lang=${language}`);
@@ -76,10 +81,17 @@ export default function HLSPlayer({
       const introEnd = data.stream.intro?.end ?? 0;
       const outroStart = data.stream.outro?.start ?? 0;
       const outroEnd = data.stream.outro?.end ?? 0;
-      introTimesRef.current = { start: introStart, end: introEnd };
-      outroTimesRef.current = { start: outroStart, end: outroEnd };
-      setIntroTimes({ start: introStart, end: introEnd });
-      setOutroTimes({ start: outroStart, end: outroEnd });
+
+      introEndRef.current = introEnd;
+      outroStartRef.current = outroStart;
+
+      const validIntro = introStart > 0 && introEnd > introStart;
+      const validOutro = outroStart > 0 && outroEnd > outroStart;
+
+      setHasIntro(validIntro);
+      setHasOutro(validOutro);
+
+      if (validIntro) setShowSkipIntro(true);
 
       const video = videoRef.current;
       if (!video) return;
@@ -111,8 +123,8 @@ export default function HLSPlayer({
             for (let i = 0; i < data.subtitles.length; i++) {
               const sub = data.subtitles[i];
               try {
-                const res = await fetch(sub.url);
-                const vtt = await res.text();
+                const subRes = await fetch(sub.url);
+                const vtt = await subRes.text();
                 const blob = new Blob([vtt], { type: "text/vtt" });
                 const blobUrl = URL.createObjectURL(blob);
                 const trackEl = document.createElement("track");
@@ -126,7 +138,6 @@ export default function HLSPlayer({
                 // skip failed subtitle
               }
             }
-            // activate default track after all tracks are loaded
             if (video.textTracks.length > 0) {
               const defaultIdx = data.subtitles.findIndex((s: Subtitle) => s.default);
               for (let t = 0; t < video.textTracks.length; t++) {
@@ -143,8 +154,8 @@ export default function HLSPlayer({
         }
       });
 
-      hls.on(Hls.Events.ERROR, (_: unknown, data: { fatal: boolean; type: string }) => {
-        if (data.fatal) {
+      hls.on(Hls.Events.ERROR, (_: unknown, errData: { fatal: boolean; type: string }) => {
+        if (errData.fatal) {
           setError("Stream could not be loaded");
           setLoading(false);
         }
@@ -177,12 +188,12 @@ export default function HLSPlayer({
         setCurrentTime(formatTime(ct));
         setDuration(formatTime(video.duration));
 
-        const intro = introTimesRef.current;
-        const outro = outroTimesRef.current;
-        const inIntro = intro.start > 0 && intro.end > intro.start && ct >= intro.start && ct <= intro.end;
-        const inOutro = outro.start > 0 && outro.end > outro.start && ct >= outro.start && ct <= outro.end;
-        setShowSkipIntro(inIntro);
-        setShowSkipOutro(inOutro);
+        if (hasIntro) {
+          setShowSkipIntro(ct < introEndRef.current);
+        }
+        if (hasOutro) {
+          setShowSkipOutro(ct >= outroStartRef.current);
+        }
       }
     };
 
@@ -195,6 +206,37 @@ export default function HLSPlayer({
       video.removeEventListener("pause", onPause);
       video.removeEventListener("timeupdate", onTimeUpdate);
     };
+  }, [hasIntro, hasOutro]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const video = videoRef.current;
+      if (!video) return;
+
+      if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        video.currentTime = Math.max(0, video.currentTime - 10);
+        setShowControls(true);
+      } else if (e.key === "ArrowRight") {
+        e.preventDefault();
+        video.currentTime = Math.min(video.duration || 0, video.currentTime + 10);
+        setShowControls(true);
+      } else if (e.key === " " || e.key === "k") {
+        e.preventDefault();
+        if (video.paused) video.play();
+        else video.pause();
+      } else if (e.key === "f") {
+        e.preventDefault();
+        toggleFullscreen();
+      } else if (e.key === "m") {
+        e.preventDefault();
+        video.muted = !video.muted;
+        setIsMuted(video.muted);
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
   }, []);
 
   const formatTime = (secs: number) => {
@@ -239,8 +281,8 @@ export default function HLSPlayer({
 
   const skipIntro = () => {
     const v = videoRef.current;
-    if (!v || !introTimes.end) return;
-    v.currentTime = introTimes.end;
+    if (!v) return;
+    v.currentTime = introEndRef.current || 90;
     setShowSkipIntro(false);
   };
 
@@ -249,8 +291,7 @@ export default function HLSPlayer({
     if (!v) return;
     if (hasNext) {
       onNext?.();
-    } else if (outroTimes.end) {
-      v.currentTime = outroTimes.end;
+    } else {
       setShowSkipOutro(false);
     }
   };
@@ -327,7 +368,7 @@ export default function HLSPlayer({
       {showSkipIntro && (
         <button
           onClick={skipIntro}
-          className="absolute bottom-24 right-4 z-20 flex items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-4 py-2.5 text-sm font-medium text-white backdrop-blur-sm transition-all hover:bg-white/20"
+          className="absolute bottom-24 right-4 z-30 flex items-center gap-2 rounded-lg border border-white/20 bg-black/60 px-5 py-2.5 text-sm font-medium text-white backdrop-blur-sm transition-all hover:bg-white/20"
         >
           <SkipForward className="h-4 w-4" />
           Skip Intro
@@ -337,7 +378,7 @@ export default function HLSPlayer({
       {showSkipOutro && (
         <button
           onClick={skipOutro}
-          className="absolute bottom-24 right-4 z-20 flex items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-4 py-2.5 text-sm font-medium text-white backdrop-blur-sm transition-all hover:bg-white/20"
+          className="absolute bottom-24 right-4 z-30 flex items-center gap-2 rounded-lg border border-white/20 bg-black/60 px-5 py-2.5 text-sm font-medium text-white backdrop-blur-sm transition-all hover:bg-white/20"
         >
           <SkipForward className="h-4 w-4" />
           {hasNext ? "Next Episode" : "Skip Outro"}
