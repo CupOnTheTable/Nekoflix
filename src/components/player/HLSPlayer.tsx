@@ -90,6 +90,14 @@ export default function HLSPlayer({
       if (iS > 0 && iE > iS) introEndRef.current = iE;
       if (oS > 0 && oE > oS) outroStartRef.current = oS;
 
+      if (introEndRef.current > 0) {
+        setShowSkipIntro(true);
+      }
+
+      if (outroStartRef.current > 0) {
+        setShowSkipOutro(true);
+      }
+
       const video = videoRef.current;
       if (!video) {
         setLoading(false);
@@ -115,10 +123,6 @@ export default function HLSPlayer({
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
         setLoading(false);
         video.play().catch(() => {});
-
-        if (introEndRef.current > 0) {
-          setShowSkipIntro(true);
-        }
 
         if (data.subtitles.length > 0) {
           (async () => {
