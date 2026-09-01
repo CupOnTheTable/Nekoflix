@@ -57,11 +57,9 @@ export async function GET(req: NextRequest) {
       ok: true,
       stream: {
         url: proxyUrl,
-        rawUrl: streamUrl,
         intro: sourceData.intro || { start: 0, end: 0 },
         outro: sourceData.outro || { start: 0, end: 0 },
       },
-      embedUrl,
       subtitles: (sourceData.tracks || [])
         .filter((t: { kind?: string }) => t.kind === "captions")
         .map((t: { file: string; label: string; default?: boolean }) => ({

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Play, Pause, ChevronLeft, ChevronRight, Volume2, VolumeX, Maximize, Minimize, Settings, Loader2, AlertCircle } from "lucide-react";
+import { Play, Pause, ChevronLeft, ChevronRight, Volume2, VolumeX, Maximize, Minimize, Settings, Loader2, AlertCircle, SkipForward, SkipBack } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Subtitle {
@@ -38,8 +38,6 @@ export default function HLSPlayer({
   const containerRef = useRef<HTMLDivElement>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [useFallback, setUseFallback] = useState(false);
-  const [fallbackUrl, setFallbackUrl] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [currentTime, setCurrentTime] = useState("0:00");
@@ -50,7 +48,13 @@ export default function HLSPlayer({
   const [subtitles, setSubtitles] = useState<Subtitle[]>([]);
   const [activeTrack, setActiveTrack] = useState<number>(-1);
   const [showSettings, setShowSettings] = useState(false);
+  const [introTimes, setIntroTimes] = useState<{ start: number; end: number }>({ start: 0, end: 0 });
+  const [outroTimes, setOutroTimes] = useState<{ start: number; end: number }>({ start: 0, end: 0 });
+  const [showSkipIntro, setShowSkipIntro] = useState(false);
+  const [showSkipOutro, setShowSkipOutro] = useState(false);
   const controlsTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const introTimesRef = useRef<{ start: number; end: number }>({ start: 0, end: 0 });
+  const outroTimesRef = useRef<{ start: number; end: number }>({ start: 0, end: 0 });
 
   const loadStream = useCallback(async () => {
     setLoading(true);
@@ -61,19 +65,21 @@ export default function HLSPlayer({
       const data = await res.json();
 
       if (!data.ok || !data.stream?.url) {
-        if (data.embedUrl) {
-          setFallbackUrl(data.embedUrl);
-          setUseFallback(true);
-          setLoading(false);
-          return;
-        }
         setError(data.error || "Stream not available");
         setLoading(false);
         return;
       }
 
       setSubtitles(data.subtitles || []);
-      setFallbackUrl(data.embedUrl || null);
+
+      const introStart = data.stream.intro?.start ?? 0;
+      const introEnd = data.stream.intro?.end ?? 0;
+      const outroStart = data.stream.outro?.start ?? 0;
+      const outroEnd = data.stream.outro?.end ?? 0;
+      introTimesRef.current = { start: introStart, end: introEnd };
+      outroTimesRef.current = { start: outroStart, end: outroEnd };
+      setIntroTimes({ start: introStart, end: introEnd });
+      setOutroTimes({ start: outroStart, end: outroEnd });
 
       const video = videoRef.current;
       if (!video) return;
@@ -137,33 +143,17 @@ export default function HLSPlayer({
         }
       });
 
-      const embedPageUrl = data.embedUrl || null;
-
       hls.on(Hls.Events.ERROR, (_: unknown, data: { fatal: boolean; type: string }) => {
         if (data.fatal) {
-          if (embedPageUrl) {
-            hls.destroy();
-            hlsRef.current = null;
-            setFallbackUrl(embedPageUrl);
-            setUseFallback(true);
-            setLoading(false);
-          } else {
-            setError("Stream could not be loaded");
-            setLoading(false);
-          }
+          setError("Stream could not be loaded");
+          setLoading(false);
         }
       });
     } catch {
-      if (embedUrl) {
-        setFallbackUrl(embedUrl);
-        setUseFallback(true);
-        setLoading(false);
-      } else {
-        setError("Stream could not be loaded");
-        setLoading(false);
-      }
+      setError("Stream could not be loaded");
+      setLoading(false);
     }
-  }, [embedId, language, embedUrl]);
+  }, [embedId, language]);
 
   useEffect(() => {
     loadStream();
@@ -182,9 +172,17 @@ export default function HLSPlayer({
     const onPause = () => setIsPlaying(false);
     const onTimeUpdate = () => {
       if (video.duration) {
-        setProgress((video.currentTime / video.duration) * 100);
-        setCurrentTime(formatTime(video.currentTime));
+        const ct = video.currentTime;
+        setProgress((ct / video.duration) * 100);
+        setCurrentTime(formatTime(ct));
         setDuration(formatTime(video.duration));
+
+        const intro = introTimesRef.current;
+        const outro = outroTimesRef.current;
+        const inIntro = intro.start > 0 && intro.end > intro.start && ct >= intro.start && ct <= intro.end;
+        const inOutro = outro.start > 0 && outro.end > outro.start && ct >= outro.start && ct <= outro.end;
+        setShowSkipIntro(inIntro);
+        setShowSkipOutro(inOutro);
       }
     };
 
@@ -239,6 +237,24 @@ export default function HLSPlayer({
     v.currentTime = pct * v.duration;
   };
 
+  const skipIntro = () => {
+    const v = videoRef.current;
+    if (!v || !introTimes.end) return;
+    v.currentTime = introTimes.end;
+    setShowSkipIntro(false);
+  };
+
+  const skipOutro = () => {
+    const v = videoRef.current;
+    if (!v) return;
+    if (hasNext) {
+      onNext?.();
+    } else if (outroTimes.end) {
+      v.currentTime = outroTimes.end;
+      setShowSkipOutro(false);
+    }
+  };
+
   const handleMouseMove = () => {
     setShowControls(true);
     if (controlsTimer.current) clearTimeout(controlsTimer.current);
@@ -282,20 +298,6 @@ export default function HLSPlayer({
     );
   }
 
-  if (useFallback && fallbackUrl) {
-    return (
-      <div className={cn("relative overflow-hidden rounded-xl bg-black", className)}>
-        <iframe
-          src={fallbackUrl}
-          className="aspect-video w-full border-0"
-          allowFullScreen
-          allow="autoplay; fullscreen; picture-in-picture"
-          referrerPolicy="no-referrer"
-        />
-      </div>
-    );
-  }
-
   return (
     <div
       ref={containerRef}
@@ -321,6 +323,26 @@ export default function HLSPlayer({
         onClick={togglePlay}
         playsInline
       />
+
+      {showSkipIntro && (
+        <button
+          onClick={skipIntro}
+          className="absolute bottom-24 right-4 z-20 flex items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-4 py-2.5 text-sm font-medium text-white backdrop-blur-sm transition-all hover:bg-white/20"
+        >
+          <SkipForward className="h-4 w-4" />
+          Skip Intro
+        </button>
+      )}
+
+      {showSkipOutro && (
+        <button
+          onClick={skipOutro}
+          className="absolute bottom-24 right-4 z-20 flex items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-4 py-2.5 text-sm font-medium text-white backdrop-blur-sm transition-all hover:bg-white/20"
+        >
+          <SkipForward className="h-4 w-4" />
+          {hasNext ? "Next Episode" : "Skip Outro"}
+        </button>
+      )}
 
       {showControls && (
         <div className="absolute bottom-0 left-0 right-0 z-10 bg-gradient-to-t from-black/90 via-black/50 to-transparent p-4 pt-16 transition-opacity">

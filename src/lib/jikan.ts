@@ -390,7 +390,7 @@ export async function searchSuggestions(query: string) {
       id: m.idMal || m.id,
       title: m.title.english || m.title.romaji,
       image: m.coverImage.medium,
-      score: m.averageScore ?? 0,
+      score: m.averageScore ? m.averageScore / 10 : 0,
     }));
   } catch {
     return [];
