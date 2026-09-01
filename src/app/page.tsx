@@ -155,7 +155,7 @@ export default function Home() {
               <Link
                 key={anime.id}
                 href={`/anime/${anime.mal_id || anime.id}`}
-                className="group relative overflow-hidden rounded-xl bg-surface border border-border transition-all hover:border-purple-500/50 hover:shadow-lg hover:shadow-purple-500/10"
+                className="group relative overflow-hidden rounded-xl bg-surface border border-border hover:border-purple-500/50 hover:shadow-lg hover:shadow-purple-500/10"
               >
                 <div className="relative aspect-[3/4] overflow-hidden">
                   <Image
@@ -205,7 +205,7 @@ export default function Home() {
               <Link
                 key={anime.id}
                 href={`/anime/${anime.mal_id || anime.id}`}
-                className="group relative overflow-hidden rounded-xl bg-surface border border-border transition-all hover:border-border hover:shadow-lg"
+                className="group relative overflow-hidden rounded-xl bg-surface border border-border hover:border-border hover:shadow-lg"
               >
                 <div className="relative aspect-[3/4] overflow-hidden">
                   <Image

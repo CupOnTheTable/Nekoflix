@@ -169,7 +169,7 @@ function AnimeRow({
             href={`/anime/${anime.id}`}
             className="group flex-shrink-0 w-[180px] sm:w-[200px]"
           >
-            <div className="relative aspect-[3/4] rounded-xl overflow-hidden border border-zinc-800 bg-zinc-900 transition-all duration-300 group-hover:scale-[1.03] group-hover:shadow-xl group-hover:shadow-black/40 group-hover:border-zinc-700">
+            <div className="relative aspect-[3/4] rounded-xl overflow-hidden border border-zinc-800 bg-zinc-900 group-hover:scale-[1.03] group-hover:shadow-xl group-hover:shadow-black/40 group-hover:border-zinc-700">
               <div
                 className="absolute inset-0 bg-cover bg-center bg-no-repeat"
                 style={{ backgroundImage: `url(${anime.coverImage})` }}
@@ -338,7 +338,7 @@ export default function HomeClient({
                 href={`/anime/${anime.id}`}
                 className="group flex-shrink-0 w-[180px] sm:w-[200px]"
               >
-                <div className="relative aspect-[3/4] rounded-xl overflow-hidden border border-zinc-800 bg-zinc-900 transition-all duration-300 group-hover:scale-[1.03] group-hover:shadow-xl group-hover:shadow-black/40 group-hover:border-zinc-700">
+                <div className="relative aspect-[3/4] rounded-xl overflow-hidden border border-zinc-800 bg-zinc-900 group-hover:scale-[1.03] group-hover:shadow-xl group-hover:shadow-black/40 group-hover:border-zinc-700">
                   <div
                     className="absolute inset-0 bg-cover bg-center bg-no-repeat"
                     style={{ backgroundImage: `url(${anime.coverImage})` }}
@@ -364,7 +364,7 @@ export default function HomeClient({
                         handleAddToWatchlist(anime.id);
                       }}
                       className={cn(
-                        "mt-2 flex items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-all duration-200",
+                        "mt-2 flex items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium",
                         "w-full",
                         watchlistIds.has(anime.id)
                           ? "bg-purple-600 text-white"
