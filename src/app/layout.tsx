@@ -19,6 +19,9 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Nekoflix - Anime Streaming",
   description: "Discover and stream your favorite anime. Manage your watchlist, never miss an episode.",
+  icons: {
+    icon: "/favicon.svg",
+  },
 };
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {

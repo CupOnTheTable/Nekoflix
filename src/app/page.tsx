@@ -132,7 +132,7 @@ export default function Home() {
               </div>
 
               <Link
-                href={`/watch/${featured.id}`}
+                href={`/anime/${featured.mal_id || featured.id}`}
                 className="inline-flex items-center gap-2.5 rounded-xl bg-purple-600 px-7 py-3.5 text-sm font-bold text-white transition-all hover:bg-purple-500 hover:scale-105 shadow-xl shadow-purple-600/30"
               >
                 <Play className="h-5 w-5 fill-white" />
@@ -154,7 +154,7 @@ export default function Home() {
             {newEpisodes.map((anime) => (
               <Link
                 key={anime.id}
-                href={`/watch/${anime.id}`}
+                href={`/anime/${anime.mal_id || anime.id}`}
                 className="group relative overflow-hidden rounded-xl bg-surface border border-border transition-all hover:border-purple-500/50 hover:shadow-lg hover:shadow-purple-500/10"
               >
                 <div className="relative aspect-[3/4] overflow-hidden">
@@ -204,7 +204,7 @@ export default function Home() {
             {allAnime.map((anime) => (
               <Link
                 key={anime.id}
-                href={`/watch/${anime.id}`}
+                href={`/anime/${anime.mal_id || anime.id}`}
                 className="group relative overflow-hidden rounded-xl bg-surface border border-border transition-all hover:border-border hover:shadow-lg"
               >
                 <div className="relative aspect-[3/4] overflow-hidden">

@@ -283,7 +283,7 @@ export default function SearchPage() {
     () =>
       debounce((value: string) => {
         setFilters((prev) => ({ ...prev, q: value || undefined, page: 1 }));
-      }, 400),
+      }, 250),
     []
   );
 
@@ -294,7 +294,7 @@ export default function SearchPage() {
       debouncedSearch(value);
 
       if (suggestionTimerRef.current) clearTimeout(suggestionTimerRef.current);
-      suggestionTimerRef.current = setTimeout(() => loadSuggestions(value), 200);
+      suggestionTimerRef.current = setTimeout(() => loadSuggestions(value), 150);
       setShowSuggestions(true);
     },
     [debouncedSearch, loadSuggestions]
@@ -382,9 +382,9 @@ export default function SearchPage() {
           </aside>
 
           <main className="flex-1 min-w-0">
-            {isLoading ? (
+            {isLoading && results.length === 0 ? (
               <SkeletonGrid />
-            ) : error ? (
+            ) : error && results.length === 0 ? (
               <EmptyState
                 icon={<SlidersHorizontal className="h-10 w-10" />}
                 title="Something went wrong"
@@ -405,6 +405,11 @@ export default function SearchPage() {
               />
             ) : (
               <>
+                {isLoading && (
+                  <div className="mb-4 h-0.5 w-full overflow-hidden rounded-full bg-zinc-800">
+                    <div className="h-full w-1/3 animate-pulse rounded-full bg-purple-500" />
+                  </div>
+                )}
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 kuro-stagger">
                   {results.map((anime) => (
                     <AnimeCard key={anime.id} anime={anime} />

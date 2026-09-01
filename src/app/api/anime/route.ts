@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
     const yearFrom = searchParams.get("yearFrom") ? parseInt(searchParams.get("yearFrom")!, 10) : undefined;
     const yearTo = searchParams.get("yearTo") ? parseInt(searchParams.get("yearTo")!, 10) : undefined;
     const minScore = searchParams.get("minScore") ? parseFloat(searchParams.get("minScore")!) : undefined;
-    const sort = searchParams.get("sort") || undefined;
+    const sort = searchParams.get("sort") || (!q ? "popularity" : undefined);
     const page = searchParams.get("page") ? parseInt(searchParams.get("page")!, 10) : 1;
 
     const results = await fetchAnimeSearch(q, {
