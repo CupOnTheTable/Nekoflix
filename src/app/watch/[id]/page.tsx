@@ -292,10 +292,6 @@ export default function WatchPage() {
                       <p className="text-xs font-medium text-foreground truncate">
                         {cleanTitle(ep.title) || `Episode ${ep.number}`}
                       </p>
-                      <div className="mt-1 flex items-center justify-center gap-1">
-                        {hasSub && <span className="text-[10px] text-green-400">SUB</span>}
-                        {hasDub && <span className="text-[10px] text-blue-400">DUB</span>}
-                      </div>
                     </div>
                   </button>
                 );
