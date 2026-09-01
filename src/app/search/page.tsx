@@ -410,7 +410,7 @@ export default function SearchPage() {
                     <div className="h-full w-1/3 animate-pulse rounded-full bg-purple-500" />
                   </div>
                 )}
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 kuro-stagger">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                   {results.map((anime) => (
                     <AnimeCard key={anime.id} anime={anime} />
                   ))}
