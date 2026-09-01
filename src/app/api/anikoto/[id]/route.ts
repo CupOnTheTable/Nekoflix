@@ -10,7 +10,12 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   }
 
   try {
-    const data = await getSeries(seriesId);
+    const raw = await getSeries(seriesId);
+    const malId = (raw as unknown as { anime?: { mal_id?: string } })?.anime?.mal_id;
+    const data = {
+      ...raw,
+      mal_id: malId || null,
+    };
     return NextResponse.json({ ok: true, data });
   } catch {
     // If AniKoto ID fails, try looking up by MAL ID

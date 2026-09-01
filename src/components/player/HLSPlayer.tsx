@@ -17,6 +17,8 @@ interface HLSPlayerProps {
   embedId: string;
   language?: "sub" | "dub";
   title?: string;
+  malId?: string | null;
+  episodeNumber?: number;
   onNext?: () => void;
   onPrevious?: () => void;
   hasNext?: boolean;
@@ -28,6 +30,8 @@ export default function HLSPlayer({
   embedId,
   language = "sub",
   title,
+  malId,
+  episodeNumber,
   onNext,
   onPrevious,
   hasNext,
@@ -89,6 +93,25 @@ export default function HLSPlayer({
 
       if (iS > 0 && iE > iS) introEndRef.current = iE;
       if (oS > 0 && oE > oS) outroStartRef.current = oS;
+
+      if (malId && episodeNumber) {
+        try {
+          const skipRes = await fetch(
+            `/api/skip-times?malId=${malId}&ep=${episodeNumber}&duration=1400`
+          );
+          const skipData = await skipRes.json();
+          if (skipData.ok) {
+            if (skipData.intro && skipData.intro.end > 0) {
+              introEndRef.current = skipData.intro.end;
+            }
+            if (skipData.outro && skipData.outro.start > 0) {
+              outroStartRef.current = skipData.outro.start;
+            }
+          }
+        } catch {
+          // skip times unavailable, use fallback
+        }
+      }
 
       if (introEndRef.current > 0) {
         setShowSkipIntro(true);
@@ -164,7 +187,7 @@ export default function HLSPlayer({
       setError("Stream could not be loaded");
       setLoading(false);
     }
-  }, [embedId, language]);
+  }, [embedId, language, malId, episodeNumber]);
 
   useEffect(() => {
     loadStream();

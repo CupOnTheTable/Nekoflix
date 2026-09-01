@@ -21,6 +21,7 @@ interface SeriesData {
   poster: string;
   description?: string;
   episodes: Episode[];
+  mal_id?: string | null;
 }
 
 interface AniListFallback {
@@ -205,6 +206,8 @@ export default function WatchPage() {
               embedId={embedId}
               language={language}
               title={episodeLabel}
+              malId={series.mal_id || fallback?.id?.toString() || null}
+              episodeNumber={selectedEp}
               onNext={handleNext}
               onPrevious={handlePrevious}
               hasNext={selectedEp < series.episodes.length}
