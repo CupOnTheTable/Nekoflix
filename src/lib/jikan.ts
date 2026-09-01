@@ -21,6 +21,25 @@ interface AniListMedia {
   season: string | null;
   seasonYear: number | null;
   nextAiringEpisode: { episode: number; airingAt: number } | null;
+  duration: number | null;
+  characters?: {
+    edges: {
+      node: { id: number; name: { full: string }; image: { large: string | null } | null };
+      role: string;
+      voiceActors: { name: { full: string }; image: { large: string | null } | null; language: string }[];
+    }[];
+  };
+  recommendations?: {
+    edges: {
+      node: { mediaRecommendation: AniListMedia };
+    }[];
+  };
+  relations?: {
+    edges: {
+      node: { id: number; title: { romaji: string; english: string | null }; coverImage: { large: string } | null; format: string | null; status: string | null };
+      relationType: string;
+    }[];
+  };
 }
 
 interface AniListResponse {
@@ -155,6 +174,25 @@ function mapAnilistToAnime(m: AniListMedia): Anime {
     episodeCount: m.episodes ?? 0,
     broadcastDay,
     broadcastTime,
+    duration: m.duration || undefined,
+    characters: m.characters?.edges?.map((e) => ({
+      id: e.node.id,
+      name: e.node.name.full,
+      image: e.node.image?.large || null,
+      role: e.role,
+      voiceActor: e.voiceActors?.[0] ? {
+        name: e.voiceActors[0].name.full,
+        image: e.voiceActors[0].image?.large || null,
+      } : undefined,
+    })),
+    recommendations: m.recommendations?.edges?.map((e) => ({
+      id: e.node.mediaRecommendation.idMal || e.node.mediaRecommendation.id,
+      title: e.node.mediaRecommendation.title.english || e.node.mediaRecommendation.title.romaji,
+      coverImage: e.node.mediaRecommendation.coverImage.large,
+      score: e.node.mediaRecommendation.averageScore ? e.node.mediaRecommendation.averageScore / 10 : 0,
+      format: e.node.mediaRecommendation.format || "TV",
+      status: e.node.mediaRecommendation.status || "FINISHED",
+    })),
   };
 }
 
@@ -276,11 +314,30 @@ export async function fetchAnimeById(id: number) {
       coverImage { large medium }
       bannerImage
       description(asHtml: false)
-      averageScore episodes status format genres
+      averageScore episodes status format genres duration
       studios(isMain: true) { nodes { name } }
       startDate { year month day }
       season seasonYear
       nextAiringEpisode { episode airingAt }
+      characters(sort: ROLE, perPage: 12) {
+        edges {
+          node { id name { full } image { large } }
+          role
+          voiceActors(language: JAPANESE) { name { full } image { large } language }
+        }
+      }
+      recommendations(perPage: 8, sort: RATING_DESC) {
+        edges {
+          node {
+            mediaRecommendation {
+              id idMal
+              title { romaji english }
+              coverImage { large }
+              averageScore format status
+            }
+          }
+        }
+      }
     }
   }`;
 

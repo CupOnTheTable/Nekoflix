@@ -1,3 +1,23 @@
+export interface AnimeCharacter {
+  id: number;
+  name: string;
+  image: string | null;
+  role: string;
+  voiceActor?: {
+    name: string;
+    image: string | null;
+  };
+}
+
+export interface AnimeRecommendation {
+  id: number;
+  title: string;
+  coverImage: string;
+  score: number;
+  format: string;
+  status: string;
+}
+
 export interface Anime {
   id: number;
   title: string;
@@ -18,6 +38,9 @@ export interface Anime {
   episodeCount: number;
   broadcastDay?: string;
   broadcastTime?: string;
+  duration?: number;
+  characters?: AnimeCharacter[];
+  recommendations?: AnimeRecommendation[];
 }
 
 export type WatchlistStatus =
