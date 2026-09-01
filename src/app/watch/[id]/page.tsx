@@ -183,7 +183,7 @@ export default function WatchPage() {
   // Series found — show player
   if (!series) return null;
 
-  const seriesTitle = series.title || fallback?.title || "Unknown";
+  const episodeLabel = cleanTitle(currentEpisode?.title) || `Episode ${selectedEp}`;
 
   return (
     <div className="min-h-screen bg-background kuro-animate-in">
@@ -204,7 +204,7 @@ export default function WatchPage() {
               key={`${embedId}-${language}`}
               embedId={embedId}
               language={language}
-              title={`${seriesTitle} — Episode ${selectedEp}${cleanTitle(currentEpisode?.title) ? `: ${cleanTitle(currentEpisode?.title)}` : ""}`}
+              title={episodeLabel}
               onNext={handleNext}
               onPrevious={handlePrevious}
               hasNext={selectedEp < series.episodes.length}
@@ -218,10 +218,9 @@ export default function WatchPage() {
           <div className="mx-auto max-w-5xl">
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div>
-                <h1 className="text-xl font-bold text-foreground">{seriesTitle}</h1>
+                <h1 className="text-xl font-bold text-foreground">{episodeLabel}</h1>
                 <p className="text-sm text-muted">
                   Episode {selectedEp} of {series.episodes.length}
-                  {cleanTitle(currentEpisode?.title) && ` — ${cleanTitle(currentEpisode?.title)}`}
                 </p>
               </div>
 
