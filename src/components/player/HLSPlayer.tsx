@@ -302,7 +302,7 @@ export default function HLSPlayer({
   const skipIntro = () => {
     const v = videoRef.current;
     if (!v) return;
-    v.currentTime = introEndRef.current || 90;
+    v.currentTime = introEndRef.current > 3 ? introEndRef.current - 3 : introEndRef.current || 90;
     setShowSkipIntro(false);
   };
 
