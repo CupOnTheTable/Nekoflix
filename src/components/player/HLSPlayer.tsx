@@ -37,6 +37,8 @@ export default function HLSPlayer({
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<unknown>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const rafRef = useRef<number>(0);
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -55,6 +57,12 @@ export default function HLSPlayer({
 
   const introRef = useRef({ start: 0, end: 0 });
   const outroRef = useRef({ start: 0, end: 0 });
+
+  const formatTime = (secs: number) => {
+    const m = Math.floor(secs / 60);
+    const s = Math.floor(secs % 60);
+    return `${m}:${s.toString().padStart(2, "0")}`;
+  };
 
   const loadStream = useCallback(async () => {
     setLoading(true);
@@ -158,45 +166,56 @@ export default function HLSPlayer({
     };
   }, [loadStream]);
 
+  // requestAnimationFrame loop for reliable time tracking
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
 
-    const checkSkipButtons = () => {
-      const ct = video.currentTime;
-      const intro = introRef.current;
-      const outro = outroRef.current;
+    let lastProgress = 0;
+    let lastSkipIntro = false;
+    let lastSkipOutro = false;
 
-      if (intro.start > 0) {
-        setShowSkipIntro(ct >= intro.start && ct <= intro.end);
+    const tick = () => {
+      if (video.duration) {
+        const pct = (video.currentTime / video.duration) * 100;
+        if (Math.abs(pct - lastProgress) > 0.1) {
+          lastProgress = pct;
+          setProgress(pct);
+          setCurrentTime(formatTime(video.currentTime));
+          setDuration(formatTime(video.duration));
+        }
+
+        const intro = introRef.current;
+        const outro = outroRef.current;
+        const ct = video.currentTime;
+
+        const wantSkipIntro = intro.start > 0 && ct >= intro.start && ct <= intro.end;
+        const wantSkipOutro = outro.start > 0 && ct >= outro.start && ct <= outro.end;
+
+        if (wantSkipIntro !== lastSkipIntro) {
+          lastSkipIntro = wantSkipIntro;
+          setShowSkipIntro(wantSkipIntro);
+        }
+        if (wantSkipOutro !== lastSkipOutro) {
+          lastSkipOutro = wantSkipOutro;
+          setShowSkipOutro(wantSkipOutro);
+        }
       }
-      if (outro.start > 0) {
-        setShowSkipOutro(ct >= outro.start && ct <= outro.end);
-      }
+      rafRef.current = requestAnimationFrame(tick);
     };
+
+    rafRef.current = requestAnimationFrame(tick);
 
     const onPlay = () => setIsPlaying(true);
     const onPause = () => setIsPlaying(false);
-    const onTimeUpdate = () => {
-      if (video.duration) {
-        setProgress((video.currentTime / video.duration) * 100);
-        setCurrentTime(formatTime(video.currentTime));
-        setDuration(formatTime(video.duration));
-      }
-      checkSkipButtons();
-    };
-    const onSeeked = () => checkSkipButtons();
 
     video.addEventListener("play", onPlay);
     video.addEventListener("pause", onPause);
-    video.addEventListener("timeupdate", onTimeUpdate);
-    video.addEventListener("seeked", onSeeked);
 
     return () => {
+      cancelAnimationFrame(rafRef.current);
       video.removeEventListener("play", onPlay);
       video.removeEventListener("pause", onPause);
-      video.removeEventListener("timeupdate", onTimeUpdate);
-      video.removeEventListener("seeked", onSeeked);
     };
   }, []);
 
@@ -236,12 +255,6 @@ export default function HLSPlayer({
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, []);
-
-  const formatTime = (secs: number) => {
-    const m = Math.floor(secs / 60);
-    const s = Math.floor(secs % 60);
-    return `${m}:${s.toString().padStart(2, "0")}`;
-  };
 
   const togglePlay = () => {
     const v = videoRef.current;
