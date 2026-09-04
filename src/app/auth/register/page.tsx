@@ -3,7 +3,8 @@
 import { useState, useMemo, FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { User, Mail, Lock, Eye, EyeOff, Flame } from "lucide-react";
+import { User, Mail, Lock, Eye, EyeOff } from "lucide-react";
+import NekoflixLogo from "@/components/ui/NekoflixLogo";
 
 type Strength = { label: string; color: string; width: string };
 
@@ -92,10 +93,10 @@ export default function RegisterPage() {
         <div className="text-center">
           <Link
             href="/"
-            className="inline-flex items-center gap-2 text-2xl font-bold text-white"
+            className="inline-flex items-center gap-2.5 text-2xl font-bold text-white"
           >
-            <Flame className="h-8 w-8 text-[#e94560]" />
-            AniStream
+            <NekoflixLogo className="h-10 w-10" />
+            Nekoflix
           </Link>
           <p className="mt-2 text-sm text-zinc-400">
             Create your account to get started
@@ -129,7 +130,7 @@ export default function RegisterPage() {
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Your name"
                   autoComplete="name"
-                  className="w-full rounded-xl border border-zinc-700 bg-zinc-800 py-3 pl-10 pr-4 text-sm text-white placeholder-zinc-500 outline-none transition-all focus:border-transparent focus:ring-2 focus:ring-[#e94560]"
+                  className="w-full rounded-xl border border-zinc-700 bg-zinc-800 py-3 pl-10 pr-4 text-sm text-white placeholder-zinc-500 outline-none transition-all focus:border-transparent focus:ring-2 focus:ring-purple-500"
                 />
               </div>
             </div>
@@ -150,7 +151,7 @@ export default function RegisterPage() {
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="you@example.com"
                   autoComplete="email"
-                  className="w-full rounded-xl border border-zinc-700 bg-zinc-800 py-3 pl-10 pr-4 text-sm text-white placeholder-zinc-500 outline-none transition-all focus:border-transparent focus:ring-2 focus:ring-[#e94560]"
+                  className="w-full rounded-xl border border-zinc-700 bg-zinc-800 py-3 pl-10 pr-4 text-sm text-white placeholder-zinc-500 outline-none transition-all focus:border-transparent focus:ring-2 focus:ring-purple-500"
                 />
               </div>
             </div>
@@ -171,7 +172,7 @@ export default function RegisterPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="At least 8 characters"
                   autoComplete="new-password"
-                  className="w-full rounded-xl border border-zinc-700 bg-zinc-800 py-3 pl-10 pr-11 text-sm text-white placeholder-zinc-500 outline-none transition-all focus:border-transparent focus:ring-2 focus:ring-[#e94560]"
+                  className="w-full rounded-xl border border-zinc-700 bg-zinc-800 py-3 pl-10 pr-11 text-sm text-white placeholder-zinc-500 outline-none transition-all focus:border-transparent focus:ring-2 focus:ring-purple-500"
                 />
                 <button
                   type="button"
@@ -224,7 +225,7 @@ export default function RegisterPage() {
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="Repeat your password"
                   autoComplete="new-password"
-                  className="w-full rounded-xl border border-zinc-700 bg-zinc-800 py-3 pl-10 pr-11 text-sm text-white placeholder-zinc-500 outline-none transition-all focus:border-transparent focus:ring-2 focus:ring-[#e94560]"
+                  className="w-full rounded-xl border border-zinc-700 bg-zinc-800 py-3 pl-10 pr-11 text-sm text-white placeholder-zinc-500 outline-none transition-all focus:border-transparent focus:ring-2 focus:ring-purple-500"
                 />
                 <button
                   type="button"
@@ -249,7 +250,7 @@ export default function RegisterPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full rounded-xl bg-[#e94560] py-3 text-sm font-semibold text-white transition-all hover:bg-[#ff6b81] disabled:cursor-not-allowed disabled:opacity-50"
+              className="w-full rounded-xl bg-purple-600 py-3 text-sm font-semibold text-white transition-all hover:bg-purple-500 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {loading ? (
                 <span className="inline-flex items-center gap-2">
@@ -285,7 +286,7 @@ export default function RegisterPage() {
           Already have an account?{" "}
           <Link
             href="/auth/login"
-            className="font-medium text-[#e94560] transition-colors hover:text-[#ff6b81]"
+            className="font-medium text-purple-400 transition-colors hover:text-purple-300"
           >
             Sign in
           </Link>

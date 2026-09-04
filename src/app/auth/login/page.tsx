@@ -3,7 +3,8 @@
 import { useState, FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Mail, Lock, Eye, EyeOff, Flame } from "lucide-react";
+import { Mail, Lock, Eye, EyeOff } from "lucide-react";
+import NekoflixLogo from "@/components/ui/NekoflixLogo";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -63,10 +64,10 @@ export default function LoginPage() {
         <div className="text-center">
           <Link
             href="/"
-            className="inline-flex items-center gap-2 text-2xl font-bold text-white"
+            className="inline-flex items-center gap-2.5 text-2xl font-bold text-white"
           >
-            <Flame className="h-8 w-8 text-[#e94560]" />
-            AniStream
+            <NekoflixLogo className="h-10 w-10" />
+            Nekoflix
           </Link>
           <p className="mt-2 text-sm text-zinc-400">
             Sign in to continue watching
@@ -100,7 +101,7 @@ export default function LoginPage() {
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="you@example.com"
                   autoComplete="email"
-                  className="w-full rounded-xl border border-zinc-700 bg-zinc-800 py-3 pl-10 pr-4 text-sm text-white placeholder-zinc-500 outline-none transition-all focus:border-transparent focus:ring-2 focus:ring-[#e94560]"
+                  className="w-full rounded-xl border border-zinc-700 bg-zinc-800 py-3 pl-10 pr-4 text-sm text-white placeholder-zinc-500 outline-none transition-all focus:border-transparent focus:ring-2 focus:ring-purple-500"
                 />
               </div>
             </div>
@@ -121,7 +122,7 @@ export default function LoginPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Enter your password"
                   autoComplete="current-password"
-                  className="w-full rounded-xl border border-zinc-700 bg-zinc-800 py-3 pl-10 pr-11 text-sm text-white placeholder-zinc-500 outline-none transition-all focus:border-transparent focus:ring-2 focus:ring-[#e94560]"
+                  className="w-full rounded-xl border border-zinc-700 bg-zinc-800 py-3 pl-10 pr-11 text-sm text-white placeholder-zinc-500 outline-none transition-all focus:border-transparent focus:ring-2 focus:ring-purple-500"
                 />
                 <button
                   type="button"
@@ -141,7 +142,7 @@ export default function LoginPage() {
             <div className="flex items-center justify-end">
               <button
                 type="button"
-                className="text-sm text-[#e94560] transition-colors hover:text-[#ff6b81]"
+                className="text-sm text-purple-400 transition-colors hover:text-purple-300"
               >
                 Forgot password?
               </button>
@@ -150,7 +151,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full rounded-xl bg-[#e94560] py-3 text-sm font-semibold text-white transition-all hover:bg-[#ff6b81] disabled:cursor-not-allowed disabled:opacity-50"
+              className="w-full rounded-xl bg-purple-600 py-3 text-sm font-semibold text-white transition-all hover:bg-purple-500 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {loading ? (
                 <span className="inline-flex items-center gap-2">
@@ -186,7 +187,7 @@ export default function LoginPage() {
           Don&apos;t have an account?{" "}
           <Link
             href="/auth/register"
-            className="font-medium text-[#e94560] transition-colors hover:text-[#ff6b81]"
+            className="font-medium text-purple-400 transition-colors hover:text-purple-300"
           >
             Sign up
           </Link>
