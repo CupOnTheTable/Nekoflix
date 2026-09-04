@@ -144,14 +144,18 @@ export default function SchedulePage() {
     const u: Anime[] = [];
     for (const anime of sortedAnime) {
       const mins = parseBroadcastMinutes(anime.broadcastTime);
-      if (mins === -1 || mins <= currentMinutes) {
+      if (selectedDay < todayIndex) {
+        a.push(anime);
+      } else if (selectedDay > todayIndex) {
+        u.push(anime);
+      } else if (mins === -1 || mins <= currentMinutes) {
         a.push(anime);
       } else {
         u.push(anime);
       }
     }
     return { aired: a, upcoming: u };
-  }, [sortedAnime, currentMinutes]);
+  }, [sortedAnime, currentMinutes, selectedDay, todayIndex]);
 
   const getTimePosition = useCallback(
     (time: string | undefined): number | null => {
