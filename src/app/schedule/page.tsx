@@ -183,7 +183,7 @@ export default function SchedulePage() {
     const maxTime = Math.max(...allTimes);
     const range = maxTime - minTime || 1;
     return ((currentMinutes - minTime) / range) * 100;
-  }, [sortedAnime, currentMinutes, mounted]);
+  }, [sortedAnime, currentMinutes, mounted, selectedDay, todayIndex]);
 
   const timeLabel = mounted
     ? currentTime.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
