@@ -4,6 +4,9 @@ import { prisma } from "@/lib/prisma";
 const ANILIST_URL = "https://graphql.anilist.co";
 const JIKAN_BASE = "https://api.jikan.moe/v4";
 
+const scheduleCache = new Map<string, { data: Anime[]; ts: number }>();
+const SCHEDULE_TTL = 24 * 60 * 60 * 1000;
+
 interface AniListMedia {
   id: number;
   idMal: number | null;
@@ -350,6 +353,12 @@ export async function fetchAnimeById(id: number) {
 }
 
 export async function fetchSchedule(day?: string) {
+  const cacheKey = `schedule_${day || "all"}`;
+  const cached = scheduleCache.get(cacheKey);
+  if (cached && Date.now() - cached.ts < SCHEDULE_TTL) {
+    return cached.data;
+  }
+
   const SCHEDULE_QUERY = `
   query ($page: Int, $limit: Int) {
     Page(page: $page, perPage: $limit) {
@@ -357,13 +366,12 @@ export async function fetchSchedule(day?: string) {
         id idMal
         title { romaji english native }
         coverImage { large medium }
-        bannerImage
-        description(asHtml: false)
         averageScore episodes status format genres
         studios(isMain: true) { nodes { name } }
         startDate { year month day }
         season seasonYear
         nextAiringEpisode { episode airingAt }
+        duration
       }
       pageInfo { total lastPage hasNextPage }
     }
@@ -371,18 +379,15 @@ export async function fetchSchedule(day?: string) {
 
   try {
     const res = await anilistQuery<AniListResponse>(SCHEDULE_QUERY, { page: 1, limit: 50 });
-    let media = res.data.Page.media.map(mapAnilistToAnime);
+    const media = res.data.Page.media.map(mapAnilistToAnime);
+
+    scheduleCache.set(cacheKey, { data: media, ts: Date.now() });
 
     if (day) {
-      const dayMap: Record<string, number> = {
-        sunday: 0, monday: 1, tuesday: 2, wednesday: 3,
-        thursday: 4, friday: 5, saturday: 6,
-      };
-      const targetDay = dayMap[day.toLowerCase()];
-      if (targetDay !== undefined) {
-        const now = new Date();
-        const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-        media = media.filter((a) => {
+      const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+      const targetDay = dayNames.findIndex(d => d.toLowerCase() === day.toLowerCase());
+      if (targetDay !== -1) {
+        return media.filter((a) => {
           if (!a.broadcastDay) return false;
           return a.broadcastDay.toLowerCase() === dayNames[targetDay].toLowerCase();
         });
