@@ -150,7 +150,7 @@ function mapAnilistToAnime(m: AniListMedia): Anime {
     : "Winter";
 
   const broadcastDay = m.nextAiringEpisode?.airingAt
-    ? new Date(m.nextAiringEpisode.airingAt * 1000).toLocaleDateString("en-US", { weekday: "long", timeZone: "Asia/Tokyo" })
+    ? new Date(m.nextAiringEpisode.airingAt * 1000).toLocaleDateString("en-US", { weekday: "long" })
     : undefined;
 
   const broadcastTime = m.nextAiringEpisode?.airingAt
@@ -356,7 +356,7 @@ export async function fetchSchedule(day?: string) {
   const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
   const targetDay = day ? dayNames.findIndex(d => d.toLowerCase() === day.toLowerCase()) : -1;
 
-  const cacheKey = "schedule_all";
+  const cacheKey = "schedule_all_v2";
   const cached = scheduleCache.get(cacheKey);
   let media: Anime[];
 
