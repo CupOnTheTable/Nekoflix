@@ -353,51 +353,51 @@ export async function fetchAnimeById(id: number) {
 }
 
 export async function fetchSchedule(day?: string) {
-  const cacheKey = `schedule_${day || "all"}`;
+  const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  const targetDay = day ? dayNames.findIndex(d => d.toLowerCase() === day.toLowerCase()) : -1;
+
+  const cacheKey = "schedule_all";
   const cached = scheduleCache.get(cacheKey);
+  let media: Anime[];
+
   if (cached && Date.now() - cached.ts < SCHEDULE_TTL) {
-    return cached.data;
+    media = cached.data;
+  } else {
+    const SCHEDULE_QUERY = `
+    query ($page: Int, $limit: Int) {
+      Page(page: $page, perPage: $limit) {
+        media(status: RELEASING, type: ANIME, sort: POPULARITY_DESC) {
+          id idMal
+          title { romaji english native }
+          coverImage { large medium }
+          averageScore episodes status format genres
+          studios(isMain: true) { nodes { name } }
+          startDate { year month day }
+          season seasonYear
+          nextAiringEpisode { episode airingAt }
+          duration
+        }
+        pageInfo { total lastPage hasNextPage }
+      }
+    }`;
+
+    try {
+      const res = await anilistQuery<AniListResponse>(SCHEDULE_QUERY, { page: 1, limit: 50 });
+      media = res.data.Page.media.map(mapAnilistToAnime);
+      scheduleCache.set(cacheKey, { data: media, ts: Date.now() });
+    } catch {
+      return [];
+    }
   }
 
-  const SCHEDULE_QUERY = `
-  query ($page: Int, $limit: Int) {
-    Page(page: $page, perPage: $limit) {
-      media(status: RELEASING, type: ANIME, sort: POPULARITY_DESC) {
-        id idMal
-        title { romaji english native }
-        coverImage { large medium }
-        averageScore episodes status format genres
-        studios(isMain: true) { nodes { name } }
-        startDate { year month day }
-        season seasonYear
-        nextAiringEpisode { episode airingAt }
-        duration
-      }
-      pageInfo { total lastPage hasNextPage }
-    }
-  }`;
-
-  try {
-    const res = await anilistQuery<AniListResponse>(SCHEDULE_QUERY, { page: 1, limit: 50 });
-    const media = res.data.Page.media.map(mapAnilistToAnime);
-
-    scheduleCache.set(cacheKey, { data: media, ts: Date.now() });
-
-    if (day) {
-      const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-      const targetDay = dayNames.findIndex(d => d.toLowerCase() === day.toLowerCase());
-      if (targetDay !== -1) {
-        return media.filter((a) => {
-          if (!a.broadcastDay) return false;
-          return a.broadcastDay.toLowerCase() === dayNames[targetDay].toLowerCase();
-        });
-      }
-    }
-
-    return media;
-  } catch {
-    return [];
+  if (targetDay !== -1) {
+    return media.filter((a) => {
+      if (!a.broadcastDay) return false;
+      return a.broadcastDay.toLowerCase() === dayNames[targetDay].toLowerCase();
+    });
   }
+
+  return media;
 }
 
 export async function fetchRandomAnime() {
