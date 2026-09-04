@@ -150,7 +150,7 @@ function mapAnilistToAnime(m: AniListMedia): Anime {
     : "Winter";
 
   const broadcastDay = m.nextAiringEpisode?.airingAt
-    ? new Date(m.nextAiringEpisode.airingAt * 1000).toLocaleDateString("en-US", { weekday: "long" })
+    ? new Date(m.nextAiringEpisode.airingAt * 1000).toLocaleDateString("en-US", { weekday: "long", timeZone: "Asia/Tokyo" })
     : undefined;
 
   const broadcastTime = m.nextAiringEpisode?.airingAt
