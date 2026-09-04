@@ -73,10 +73,12 @@ export default function SchedulePage() {
 
   useEffect(() => {
     const dayName = WEEKDAY_MAP[WEEKDAYS[selectedDay]];
+    let cancelled = false;
     setLoading(true);
     fetch(`/api/schedule?day=${encodeURIComponent(dayName)}`)
       .then((r) => r.json())
       .then((data) => {
+        if (cancelled) return;
         const all = data.anime || [];
         if (watchlistOnly && user) {
           setDayAnime(all.filter((a: Anime) => userWatchlistIds.has(a.id)));
@@ -86,10 +88,23 @@ export default function SchedulePage() {
         setLoading(false);
       })
       .catch(() => {
+        if (cancelled) return;
         setDayAnime([]);
         setLoading(false);
       });
-  }, [selectedDay, watchlistOnly, user, userWatchlistIds]);
+    return () => { cancelled = true; };
+  }, [selectedDay, watchlistOnly]);
+
+  useEffect(() => {
+    if (!watchlistOnly || !user) return;
+    fetch(`/api/schedule?day=${encodeURIComponent(WEEKDAY_MAP[WEEKDAYS[selectedDay]])}`)
+      .then((r) => r.json())
+      .then((data) => {
+        const all = data.anime || [];
+        setDayAnime(all.filter((a: Anime) => userWatchlistIds.has(a.id)));
+      })
+      .catch(() => {});
+  }, [userWatchlistIds]);
 
   useEffect(() => {
     fetch("/api/auth/me")
