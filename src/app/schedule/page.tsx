@@ -155,7 +155,7 @@ export default function SchedulePage() {
       }
     }
     return { aired: a, upcoming: u };
-  }, [sortedAnime, currentMinutes, selectedDay, todayIndex]);
+  }, [sortedAnime, currentMinutes, selectedDay, todayIndex, mounted]);
 
   const getTimePosition = useCallback(
     (time: string | undefined): number | null => {
@@ -174,7 +174,7 @@ export default function SchedulePage() {
   );
 
   const nowPosition = useMemo(() => {
-    if (!mounted || sortedAnime.length === 0) return null;
+    if (!mounted || sortedAnime.length === 0 || selectedDay !== todayIndex) return null;
     const allTimes = sortedAnime
       .map((a) => parseBroadcastMinutes(a.broadcastTime))
       .filter((m) => m !== -1);
