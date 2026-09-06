@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAnimeById } from "@/lib/anime-data";
-import { findSeriesByMalId } from "@/lib/anikoto";
 
 export async function GET(
   _request: NextRequest,
@@ -18,11 +17,7 @@ export async function GET(
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
-    let watchable = false;
-    try {
-      const anikoto = await findSeriesByMalId(animeId);
-      watchable = !!anikoto;
-    } catch {}
+    const watchable = true;
 
     return NextResponse.json({ anime, watchable });
   } catch (error) {
