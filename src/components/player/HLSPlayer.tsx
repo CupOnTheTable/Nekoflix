@@ -14,7 +14,7 @@ interface Subtitle {
 }
 
 interface HLSPlayerProps {
-  embedId: string;
+  embedId: string | null;
   language?: "sub" | "dub";
   title?: string;
   malId?: string | null;
@@ -75,7 +75,17 @@ export default function HLSPlayer({
     outroStartRef.current = 0;
 
     try {
-      const res = await fetch(`/api/stream?embedId=${embedId}&lang=${language}`);
+      let url: string;
+      if (embedId) {
+        url = `/api/stream?embedId=${embedId}&lang=${language}`;
+      } else if (malId) {
+        url = `/api/stream?malId=${malId}&episode=${episodeNumber || 1}&lang=${language}`;
+      } else {
+        setError("No stream source available");
+        setLoading(false);
+        return;
+      }
+      const res = await fetch(url);
       const data = await res.json();
 
       if (!data.ok || !data.stream?.url) {

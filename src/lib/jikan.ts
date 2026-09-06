@@ -352,6 +352,38 @@ export async function fetchAnimeById(id: number) {
   }
 }
 
+async function directAniListFetch<T>(query: string, variables: Record<string, unknown>): Promise<T> {
+  const cleanVars = Object.fromEntries(
+    Object.entries(variables).filter(([, v]) => v !== undefined && v !== null)
+  );
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 10000);
+      const res = await fetch(ANILIST_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({ query, variables: cleanVars }),
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
+      if (res.status === 429) {
+        await new Promise((r) => setTimeout(r, 2000 * (attempt + 1)));
+        continue;
+      }
+      if (!res.ok) throw new Error(`AniList ${res.status}`);
+      return await res.json();
+    } catch (err: unknown) {
+      if (err instanceof DOMException && err.name === "AbortError") {
+        if (attempt < 2) { await new Promise((r) => setTimeout(r, 1000)); continue; }
+      }
+      if (attempt === 2) throw err;
+      await new Promise((r) => setTimeout(r, 1000));
+    }
+  }
+  throw new Error("AniList API failed");
+}
+
 export async function fetchSchedule(day?: string) {
   const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
   const targetDay = day ? dayNames.findIndex(d => d.toLowerCase() === day.toLowerCase()) : -1;
@@ -382,7 +414,7 @@ export async function fetchSchedule(day?: string) {
     }`;
 
     try {
-      const res = await anilistQuery<AniListResponse>(SCHEDULE_QUERY, { page: 1, limit: 50 });
+      const res = await directAniListFetch<AniListResponse>(SCHEDULE_QUERY, { page: 1, limit: 50 });
       media = res.data.Page.media.map(mapAnilistToAnime);
       scheduleCache.set(cacheKey, { data: media, ts: Date.now() });
     } catch {

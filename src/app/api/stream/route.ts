@@ -4,70 +4,80 @@ const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,
 
 export const dynamic = "force-dynamic";
 
+async function resolveStream(megaplayUrl: string) {
+  const pageRes = await fetch(megaplayUrl, {
+    headers: { "User-Agent": UA, "Referer": "https://megaplay.buzz/" },
+  });
+
+  if (!pageRes.ok) {
+    return NextResponse.json({ error: `Embed page ${pageRes.status}` }, { status: 502 });
+  }
+
+  const html = await pageRes.text();
+  const dataIdMatch = html.match(/data-id="(\d+)"/);
+  if (!dataIdMatch) {
+    return NextResponse.json({ error: "No data-id found in embed page" }, { status: 502 });
+  }
+
+  const dataId = dataIdMatch[1];
+
+  const sourceRes = await fetch(`https://megaplay.buzz/stream/getSources?id=${dataId}`, {
+    headers: {
+      "Referer": "https://megaplay.buzz/",
+      "X-Requested-With": "XMLHttpRequest",
+      "User-Agent": UA,
+    },
+  });
+
+  if (!sourceRes.ok) {
+    return NextResponse.json({ error: `Source API ${sourceRes.status}` }, { status: 502 });
+  }
+
+  const sourceData = await sourceRes.json();
+  const streamUrl = sourceData.sources?.file;
+
+  if (!streamUrl) {
+    return NextResponse.json({ error: "No stream URL" }, { status: 502 });
+  }
+
+  return NextResponse.json({
+    ok: true,
+    stream: {
+      url: `/api/stream/proxy?url=${encodeURIComponent(streamUrl)}`,
+      intro: sourceData.intro || { start: 0, end: 0 },
+      outro: sourceData.outro || { start: 0, end: 0 },
+    },
+    subtitles: (sourceData.tracks || [])
+      .filter((t: { kind?: string }) => t.kind === "captions")
+      .map((t: { file: string; label: string; default?: boolean }) => ({
+        url: `/api/stream/proxy?url=${encodeURIComponent(t.file)}`,
+        label: t.label,
+        default: t.default || false,
+      })),
+  });
+}
+
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const embedId = searchParams.get("embedId");
+  const malId = searchParams.get("malId");
+  const episode = searchParams.get("episode") || "1";
   const language = searchParams.get("lang") || "sub";
 
-  if (!embedId) {
-    return NextResponse.json({ error: "embedId required" }, { status: 400 });
+  if (!embedId && !malId) {
+    return NextResponse.json({ error: "embedId or malId required" }, { status: 400 });
   }
 
   try {
-    const embedUrl = `https://megaplay.buzz/stream/s-2/${embedId}/${language}`;
+    let megaplayUrl: string;
 
-    const pageRes = await fetch(embedUrl, {
-      headers: { "User-Agent": UA, "Referer": "https://megaplay.buzz/" },
-    });
-
-    if (!pageRes.ok) {
-      return NextResponse.json({ error: `Embed page ${pageRes.status}` }, { status: 502 });
+    if (embedId) {
+      megaplayUrl = `https://megaplay.buzz/stream/s-2/${embedId}/${language}`;
+    } else {
+      megaplayUrl = `https://megaplay.buzz/stream/mal/${malId}/${episode}/${language}`;
     }
 
-    const html = await pageRes.text();
-    const dataIdMatch = html.match(/data-id="(\d+)"/);
-    if (!dataIdMatch) {
-      return NextResponse.json({ error: "No data-id found" }, { status: 502 });
-    }
-
-    const dataId = dataIdMatch[1];
-
-    const sourceRes = await fetch(`https://megaplay.buzz/stream/getSources?id=${dataId}`, {
-      headers: {
-        "Referer": "https://megaplay.buzz/",
-        "X-Requested-With": "XMLHttpRequest",
-        "User-Agent": UA,
-      },
-    });
-
-    if (!sourceRes.ok) {
-      return NextResponse.json({ error: `Source API ${sourceRes.status}` }, { status: 502 });
-    }
-
-    const sourceData = await sourceRes.json();
-    const streamUrl = sourceData.sources?.file;
-
-    if (!streamUrl) {
-      return NextResponse.json({ error: "No stream URL" }, { status: 502 });
-    }
-
-    const proxyUrl = `/api/stream/proxy?url=${encodeURIComponent(streamUrl)}`;
-
-    return NextResponse.json({
-      ok: true,
-      stream: {
-        url: proxyUrl,
-        intro: sourceData.intro || { start: 0, end: 0 },
-        outro: sourceData.outro || { start: 0, end: 0 },
-      },
-      subtitles: (sourceData.tracks || [])
-        .filter((t: { kind?: string }) => t.kind === "captions")
-        .map((t: { file: string; label: string; default?: boolean }) => ({
-          url: `/api/stream/proxy?url=${encodeURIComponent(t.file)}`,
-          label: t.label,
-          default: t.default || false,
-        })),
-    });
+    return await resolveStream(megaplayUrl);
   } catch (err: unknown) {
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Stream resolution failed" },

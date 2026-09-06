@@ -139,40 +139,70 @@ export default function WatchPage() {
     );
   }
 
-  // AniList fallback — show info but no player
+  // AniList fallback — use MegaPlay MAL-based streaming
   if (fallback && !series) {
+    const totalEps = fallback.episodes || 24;
+    const malIdStr = id;
+
     return (
       <div className="min-h-screen bg-background kuro-animate-in">
-        <div className="mx-auto max-w-4xl px-4 py-8">
-          <button
-            onClick={() => router.back()}
-            className="flex items-center gap-2 rounded-lg bg-surface/80 px-3 py-2 text-sm text-muted hover:bg-surface-hover backdrop-blur-sm mb-6"
-          >
-            <ArrowLeft className="h-4 w-4" /> Back
-          </button>
+        <div className="mx-auto max-w-7xl">
+          <div className="p-4">
+            <button
+              onClick={() => router.back()}
+              className="flex items-center gap-2 rounded-lg bg-surface/80 px-3 py-2 text-sm text-muted hover:bg-surface-hover backdrop-blur-sm"
+            >
+              <ArrowLeft className="h-4 w-4" /> Back
+            </button>
+          </div>
 
-          <div className="flex gap-6">
-            <div className="relative h-64 w-44 flex-shrink-0 overflow-hidden rounded-xl border border-border">
-              <Image src={fallback.coverImage} alt={fallback.title} fill sizes="176px" className="object-cover" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold text-foreground">{fallback.title}</h1>
-              <div className="flex items-center gap-3 mt-2 text-sm text-muted">
-                {fallback.score > 0 && <span>Score: {fallback.score.toFixed(1)}</span>}
-                {fallback.episodes > 0 && <span>{fallback.episodes} Episodes</span>}
-                <span>{fallback.status}</span>
-              </div>
-              {fallback.genres.length > 0 && (
-                <div className="flex flex-wrap gap-2 mt-3">
-                  {fallback.genres.map((g) => (
-                    <span key={g} className="rounded-full bg-accent/10 px-3 py-1 text-xs font-medium text-accent">{g}</span>
-                  ))}
+          <HLSPlayer
+            key={`mal-${malIdStr}-${selectedEp}-${language}`}
+            embedId={null}
+            malId={malIdStr}
+            episodeNumber={selectedEp}
+            language={language}
+            title={`Episode ${selectedEp}`}
+            onNext={() => setSelectedEp((p) => Math.min(p + 1, totalEps))}
+            onPrevious={() => setSelectedEp((p) => Math.max(p - 1, 1))}
+            hasNext={selectedEp < totalEps}
+            hasPrevious={selectedEp > 1}
+            className="mx-auto max-w-5xl"
+          />
+
+          <div className="p-4">
+            <div className="mx-auto max-w-5xl">
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <div>
+                  <h1 className="text-xl font-bold text-foreground">Episode {selectedEp}</h1>
+                  <p className="text-sm text-muted">{fallback.title}</p>
                 </div>
-              )}
-              <p className="mt-4 text-sm text-muted leading-relaxed">{fallback.synopsis}</p>
-              <div className="mt-6 rounded-xl border border-yellow-500/30 bg-yellow-500/10 p-4">
-                <p className="text-sm text-yellow-400">Streaming not available for this anime yet.</p>
-                <p className="text-xs text-muted mt-1">This anime is from AniList but not yet available on our streaming sources.</p>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setLanguage((l) => (l === "sub" ? "dub" : "sub"))}
+                    className="flex items-center gap-1.5 rounded-lg bg-surface px-3 py-2 text-sm font-medium text-muted hover:bg-surface-hover border border-border"
+                  >
+                    <Mic2 className="h-4 w-4" />
+                    {language === "sub" ? "SUB" : "DUB"}
+                  </button>
+                </div>
+              </div>
+
+              <div className="mt-4 flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+                {Array.from({ length: totalEps }, (_, i) => i + 1).map((ep) => (
+                  <button
+                    key={ep}
+                    onClick={() => setSelectedEp(ep)}
+                    className={cn(
+                      "flex h-10 min-w-[40px] items-center justify-center rounded-lg px-3 text-sm font-medium transition-colors",
+                      ep === selectedEp
+                        ? "bg-purple-600 text-white"
+                        : "bg-surface text-muted hover:bg-surface-hover border border-border"
+                    )}
+                  >
+                    {ep}
+                  </button>
+                ))}
               </div>
             </div>
           </div>
