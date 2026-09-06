@@ -132,7 +132,7 @@ export default function AnimeDetailPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="relative h-[40vh] min-h-[300px] w-full overflow-hidden">
+      <div className="relative h-[30vh] min-h-[200px] w-full overflow-hidden sm:h-[40vh] sm:min-h-[300px]">
         <Image
           src={anime.backdropImage || anime.coverImage}
           alt=""
@@ -153,11 +153,11 @@ export default function AnimeDetailPage() {
         </button>
       </div>
 
-      <div className="relative mx-auto max-w-6xl px-4 -mt-48 sm:px-6 lg:px-8">
+      <div className="relative mx-auto max-w-6xl px-4 -mt-24 sm:-mt-48 sm:px-6 lg:px-8">
         <div className="flex flex-col gap-6 lg:flex-row">
           <div className="flex-1 min-w-0">
             <div className="flex flex-col sm:flex-row gap-6">
-              <div className="relative h-64 w-44 shrink-0 overflow-hidden rounded-xl border-2 border-zinc-800 bg-zinc-800 shadow-2xl sm:h-80 sm:w-56 self-start">
+              <div className="relative h-48 w-32 shrink-0 overflow-hidden rounded-xl border-2 border-zinc-800 bg-zinc-800 shadow-2xl sm:h-80 sm:w-56 self-start">
                 <Image
                   src={anime.coverImage}
                   alt={anime.title}

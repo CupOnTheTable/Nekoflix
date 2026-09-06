@@ -252,7 +252,11 @@ export default function SchedulePage() {
         })}
       </div>
 
-      {sortedAnime.length === 0 ? (
+      {loading ? (
+        <div className="flex items-center justify-center py-20">
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-zinc-700 border-t-purple-500" />
+        </div>
+      ) : sortedAnime.length === 0 ? (
         <EmptyState
           icon={<Calendar className="h-12 w-12" />}
           title={`No anime airing on ${WEEKDAYS[selectedDay]}s`}

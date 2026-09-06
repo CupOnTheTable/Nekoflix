@@ -66,7 +66,7 @@ export function ScheduleRow({
         <p className="mt-0.5 text-xs text-zinc-500">
           Episode {entry.episodeNumber}
         </p>
-        <div className="mt-1.5 flex flex-wrap gap-1">
+        <div className="mt-1.5 hidden sm:flex flex-wrap gap-1">
           {entry.genres.slice(0, 3).map((genre) => (
             <Badge key={genre} variant="default" className="text-[10px]">
               {genre}
