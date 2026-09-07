@@ -3,7 +3,7 @@ services:
     name: nekoflix
     runtime: node
     plan: free
-    buildCommand: npm install && npx prisma generate && npm run build
+    buildCommand: npm install --include=dev && npx prisma generate && npm run build
     startCommand: npm run start
     envVars:
       - key: DATABASE_URL
