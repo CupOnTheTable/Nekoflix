@@ -10,12 +10,14 @@ export interface AniKotoAnime {
   rating: string;
   poster: string;
   is_sub: number;
+  is_dub?: number;
   description: string;
   aired: string;
   season: string;
   year: number;
   duration: string;
   status: string;
+  score: string;
   mal_id: string;
   episodes: string;
   ani_id: string;
@@ -23,7 +25,9 @@ export interface AniKotoAnime {
   s_id: number;
   background_image: string;
   updated_at: string;
-  terms_by_type?: { genre?: string[]; theme?: string[]; demographic?: string[] };
+  next_air_schedule_time?: number;
+  next_air_ep?: number;
+  terms_by_type?: { genre?: string[]; studios?: string[]; theme?: string[]; demographic?: string[]; type?: string[] };
 }
 
 export interface AniKotoEpisode {

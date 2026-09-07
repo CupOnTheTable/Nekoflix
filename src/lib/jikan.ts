@@ -216,9 +216,50 @@ export async function fetchAnimeSearch(query: string, filters?: {
     try {
       return await fetchAnimeSearchJikan(query, filters);
     } catch {
-      return { data: [], total: 0, hasNext: false };
+      try {
+        return await fetchAnimeSearchAniKoto(query, filters);
+      } catch {
+        return { data: [], total: 0, hasNext: false };
+      }
     }
   }
+}
+
+async function fetchAnimeSearchAniKoto(query: string, filters?: {
+  genres?: string[];
+  status?: string[];
+  format?: string[];
+  yearFrom?: number;
+  yearTo?: number;
+  sort?: string;
+  page?: number;
+  limit?: number;
+}) {
+  const { getRecentAnime } = await import("./anikoto");
+  const all = await getRecentAnime(filters?.page || 1, filters?.limit || 50);
+  let results = all.map((a): Anime => ({
+    id: parseInt(a.mal_id) || a.id,
+    title: a.title,
+    coverImage: a.poster,
+    backdropImage: a.background_image || a.poster,
+    synopsis: a.description || "No synopsis available.",
+    score: parseFloat(a.score) || 0,
+    episodes: parseInt(a.episodes) || 0,
+    status: a.status === "Currently Airing" ? "Airing" : "Finished",
+    format: "TV",
+    genres: a.terms_by_type?.genre || [],
+    studios: a.terms_by_type?.studios || [],
+    releaseYear: a.year || new Date().getFullYear(),
+    season: "Winter" as "Winter",
+    subbed: true,
+    dubbed: false,
+    episodeCount: parseInt(a.episodes) || 0,
+  }));
+  if (query) {
+    const q = query.toLowerCase();
+    results = results.filter((a) => a.title.toLowerCase().includes(q));
+  }
+  return { data: results, total: results.length, hasNext: false };
 }
 
 async function fetchAnimeSearchJikan(query: string, filters?: {
@@ -353,7 +394,6 @@ async function fetchAnimeSearchAniList(query: string, filters?: {
     }
   }`;
 
-  try {
     const res = await anilistQuery<AniListResponse>(SIMPLE_QUERY, variables);
     const media = res.data.Page.media;
     return {
@@ -361,9 +401,6 @@ async function fetchAnimeSearchAniList(query: string, filters?: {
       total: res.data.Page.pageInfo.total,
       hasNext: res.data.Page.pageInfo.hasNextPage,
     };
-  } catch {
-    return { data: [], total: 0, hasNext: false };
-  }
 }
 
 export async function fetchTopAnime(filter?: string, page = 1, limit = 10) {
@@ -373,9 +410,36 @@ export async function fetchTopAnime(filter?: string, page = 1, limit = 10) {
     try {
       return await fetchTopAnimeJikan(filter, page, limit);
     } catch {
-      return [];
+      try {
+        return await fetchTopAnimeAniKoto(limit);
+      } catch {
+        return [];
+      }
     }
   }
+}
+
+async function fetchTopAnimeAniKoto(limit: number): Promise<Anime[]> {
+  const { getRecentAnime } = await import("./anikoto");
+  const all = await getRecentAnime(1, limit);
+  return all.map((a): Anime => ({
+    id: parseInt(a.mal_id) || a.id,
+    title: a.title,
+    coverImage: a.poster,
+    backdropImage: a.background_image || a.poster,
+    synopsis: a.description || "No synopsis available.",
+    score: parseFloat(a.score) || 0,
+    episodes: parseInt(a.episodes) || 0,
+    status: a.status === "Currently Airing" ? "Airing" : "Finished",
+    format: "TV",
+    genres: a.terms_by_type?.genre || [],
+    studios: a.terms_by_type?.studios || [],
+    releaseYear: a.year || new Date().getFullYear(),
+    season: "Winter" as "Winter",
+    subbed: true,
+    dubbed: false,
+    episodeCount: parseInt(a.episodes) || 0,
+  }));
 }
 
 async function fetchTopAnimeJikan(filter?: string, page = 1, limit = 10) {
@@ -448,12 +512,8 @@ async function fetchTopAnimeAniList(filter?: string, page = 1, limit = 10) {
     }
   }`;
 
-  try {
     const res = await anilistQuery<AniListResponse>(TOP_QUERY, variables);
     return res.data.Page.media.map(mapAnilistToAnime);
-  } catch {
-    return [];
-  }
 }
 
 export async function fetchAnimeById(id: number) {
@@ -570,7 +630,12 @@ export async function fetchSchedule(day?: string) {
         media = await fetchScheduleJikan();
         scheduleCache.set(cacheKey, { data: media, ts: Date.now() });
       } catch {
-        return [];
+        try {
+          media = await fetchScheduleAniKoto();
+          scheduleCache.set(cacheKey, { data: media, ts: Date.now() });
+        } catch {
+          return [];
+        }
       }
     }
   }
@@ -624,6 +689,35 @@ async function fetchScheduleJikan(): Promise<Anime[]> {
       broadcastTime: time,
     };
   });
+}
+
+async function fetchScheduleAniKoto(): Promise<Anime[]> {
+  const { getRecentAnime } = await import("./anikoto");
+  const all = await getRecentAnime(1, 50);
+  return all.map((a): Anime => ({
+    id: parseInt(a.mal_id) || a.id,
+    title: a.title,
+    coverImage: a.poster,
+    backdropImage: a.background_image || a.poster,
+    synopsis: a.description || "No synopsis available.",
+    score: parseFloat(a.score) || 0,
+    episodes: parseInt(a.episodes) || 0,
+    status: a.status === "Currently Airing" ? "Airing" : "Finished",
+    format: "TV",
+    genres: a.terms_by_type?.genre || [],
+    studios: a.terms_by_type?.studios || [],
+    releaseYear: a.year || new Date().getFullYear(),
+    season: "Winter" as "Winter",
+    subbed: true,
+    dubbed: false,
+    episodeCount: parseInt(a.episodes) || 0,
+    broadcastDay: a.next_air_schedule_time
+      ? new Date(a.next_air_schedule_time * 1000).toLocaleDateString("en-US", { weekday: "long", timeZone: "Asia/Tokyo" })
+      : undefined,
+    broadcastTime: a.next_air_schedule_time
+      ? new Date(a.next_air_schedule_time * 1000).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Tokyo" })
+      : undefined,
+  }));
 }
 
 export async function fetchRandomAnime() {
