@@ -8,7 +8,7 @@ import { ScheduleRow } from "@/components/anime/ScheduleRow";
 import type { ScheduleEntry } from "@/components/anime/ScheduleRow";
 import type { Anime } from "@/types";
 
-const WEEKDAY_FULL = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const WEEKDAY_FULL = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
 function getTodayIndex(): number {
   const day = new Date().getDay();
@@ -31,7 +31,8 @@ function formatDayLabel(dayIndex: number): string {
 }
 
 function airingToLocalDay(airingAt: number): string {
-  return WEEKDAY_FULL[new Date(airingAt * 1000).getDay()];
+  const d = new Date(airingAt * 1000).getDay();
+  return WEEKDAY_FULL[(d + 6) % 7];
 }
 
 function airingToLocalTime(airingAt: number): string {
@@ -124,7 +125,7 @@ export default function SchedulePage() {
     return () => { cancelled = true; };
   }, []);
 
-  const selectedDayName = WEEKDAY_FULL[(selectedDay + 1) % 7];
+  const selectedDayName = WEEKDAY_FULL[selectedDay];
 
   const sortedByTime = useMemo(() => {
     return allAnime
