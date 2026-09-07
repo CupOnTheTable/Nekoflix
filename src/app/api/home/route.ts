@@ -26,7 +26,7 @@ export async function GET() {
     ]);
 
     // Map popular anime to include both AniList ID and MAL ID
-    const popular = popularAnilist.map((a) => ({
+    const popular = popularAnilist.map((a: (typeof popularAnilist)[number]) => ({
       ...a,
       // Use MAL ID if available (more likely to be in AniKoto), otherwise AniList ID
       watchId: a.id,

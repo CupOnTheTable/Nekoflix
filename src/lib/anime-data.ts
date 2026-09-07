@@ -115,18 +115,18 @@ export async function searchAnime(
     let results = result.data;
 
     if (filters?.episodeFrom !== undefined) {
-      results = results.filter((a) => a.episodes >= filters.episodeFrom!);
+      results = results.filter((a: Anime) => a.episodes >= filters.episodeFrom!);
     }
     if (filters?.episodeTo !== undefined) {
-      results = results.filter((a) => a.episodes <= filters.episodeTo!);
+      results = results.filter((a: Anime) => a.episodes <= filters.episodeTo!);
     }
     if (filters?.audio === "sub") {
-      results = results.filter((a) => a.subbed);
+      results = results.filter((a: Anime) => a.subbed);
     } else if (filters?.audio === "dub") {
-      results = results.filter((a) => a.dubbed);
+      results = results.filter((a: Anime) => a.dubbed);
     }
     if (filters?.season?.length) {
-      results = results.filter((a) => filters.season!.includes(a.season));
+      results = results.filter((a: Anime) => filters.season!.includes(a.season));
     }
 
     return results;

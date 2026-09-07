@@ -210,6 +210,102 @@ export async function fetchAnimeSearch(query: string, filters?: {
   page?: number;
   limit?: number;
 }) {
+  try {
+    return await fetchAnimeSearchAniList(query, filters);
+  } catch {
+    try {
+      return await fetchAnimeSearchJikan(query, filters);
+    } catch {
+      return { data: [], total: 0, hasNext: false };
+    }
+  }
+}
+
+async function fetchAnimeSearchJikan(query: string, filters?: {
+  genres?: string[];
+  status?: string[];
+  format?: string[];
+  yearFrom?: number;
+  yearTo?: number;
+  sort?: string;
+  page?: number;
+  limit?: number;
+}) {
+  const page = filters?.page || 1;
+  const limit = filters?.limit || 25;
+
+  const jikanSortMap: Record<string, string> = {
+    score: "score", popularity: "members", newest: "start_date", title_az: "title",
+  };
+  const orderBy = jikanSortMap[filters?.sort || ""] || "members";
+
+  const params = new URLSearchParams({
+    page: String(page),
+    limit: String(limit),
+    order_by: orderBy,
+    sort: "desc",
+  });
+  if (query) params.set("q", query);
+  if (filters?.status?.length) {
+    const s = filters.status[0];
+    if (s === "Airing") params.set("status", "airing");
+    else if (s === "Finished") params.set("status", "complete");
+    else if (s === "Upcoming") params.set("status", "upcoming");
+  }
+  if (filters?.format?.length) params.set("type", filters.format[0].toLowerCase());
+  if (filters?.genres?.length) params.set("genres", filters.genres.join(","));
+
+  const res = await fetch(`${JIKAN_BASE}/anime?${params}`, {
+    signal: AbortSignal.timeout(15000),
+  });
+  if (!res.ok) throw new Error(`Jikan ${res.status}`);
+  const data = await res.json();
+
+  const mapJikanToAnime = (m: Record<string, unknown>): Anime => {
+    const images = m.images as Record<string, Record<string, string>> | undefined;
+    const jpg = images?.jpg;
+    const img = jpg?.large_image_url || jpg?.image_url || "";
+    const genres = (m.genres as { name: string }[] || []).map((g) => g.name);
+    const title = (m.title_english as string) || (m.title as string) || "";
+    return {
+      id: m.mal_id as number,
+      title,
+      titleJapanese: (m.title_japanese as string) || undefined,
+      coverImage: img,
+      backdropImage: img,
+      synopsis: (m.synopsis as string)?.slice(0, 500) || "No synopsis available.",
+      score: (m.score as number) || 0,
+      episodes: (m.episodes as number) || 0,
+      status: m.status === "Currently Airing" ? "Airing" : m.status === "Not yet aired" ? "Upcoming" : "Finished",
+      format: (m.type as string) === "Movie" ? "Movie" : (m.type as string) === "OVA" ? "OVA" : (m.type as string) === "ONA" ? "ONA" : "TV",
+      genres,
+      studios: (m.studios as { name: string }[] || []).map((s) => s.name),
+      releaseYear: (m.year as number) || (m.aired as { from?: string })?.from ? new Date((m.aired as { from: string }).from).getFullYear() : new Date().getFullYear(),
+      season: "Winter" as "Winter" | "Spring" | "Summer" | "Fall",
+      subbed: true,
+      dubbed: false,
+      episodeCount: (m.episodes as number) || 0,
+    };
+  };
+
+  return {
+    data: (data.data || []).map(mapJikanToAnime),
+    total: data.pagination?.items?.total || 0,
+    hasNext: data.pagination?.has_next_page || false,
+  };
+}
+
+async function fetchAnimeSearchAniList(query: string, filters?: {
+  genres?: string[];
+  status?: string[];
+  format?: string[];
+  yearFrom?: number;
+  yearTo?: number;
+  order_by?: string;
+  sort?: string;
+  page?: number;
+  limit?: number;
+}) {
   const genreMap: Record<string, string> = {
     Action: "Action", Adventure: "Adventure", Comedy: "Comedy", Drama: "Drama",
     Fantasy: "Fantasy", Horror: "Horror", Mystery: "Mystery", Romance: "Romance",
@@ -271,6 +367,58 @@ export async function fetchAnimeSearch(query: string, filters?: {
 }
 
 export async function fetchTopAnime(filter?: string, page = 1, limit = 10) {
+  try {
+    return await fetchTopAnimeAniList(filter, page, limit);
+  } catch {
+    try {
+      return await fetchTopAnimeJikan(filter, page, limit);
+    } catch {
+      return [];
+    }
+  }
+}
+
+async function fetchTopAnimeJikan(filter?: string, page = 1, limit = 10) {
+  let endpoint = "top/anime";
+  const params = new URLSearchParams({ page: String(page), limit: String(limit) });
+  if (filter === "airing") { endpoint = "anime"; params.set("status", "airing"); params.set("order_by", "score"); params.set("sort", "desc"); }
+  else if (filter === "upcoming") { endpoint = "anime"; params.set("status", "upcoming"); }
+  else if (filter === "bypopularity") { endpoint = "anime"; params.set("order_by", "members"); params.set("sort", "desc"); }
+
+  const res = await fetch(`${JIKAN_BASE}/${endpoint}?${params}`, {
+    signal: AbortSignal.timeout(15000),
+  });
+  if (!res.ok) throw new Error(`Jikan ${res.status}`);
+  const data = await res.json();
+
+  return (data.data || []).map((m: Record<string, unknown>): Anime => {
+    const images = m.images as Record<string, Record<string, string>> | undefined;
+    const jpg = images?.jpg;
+    const img = jpg?.large_image_url || jpg?.image_url || "";
+    const genres = (m.genres as { name: string }[] || []).map((g) => g.name);
+    return {
+      id: m.mal_id as number,
+      title: (m.title_english as string) || (m.title as string) || "",
+      titleJapanese: (m.title_japanese as string) || undefined,
+      coverImage: img,
+      backdropImage: img,
+      synopsis: (m.synopsis as string)?.slice(0, 500) || "No synopsis available.",
+      score: (m.score as number) || 0,
+      episodes: (m.episodes as number) || 0,
+      status: m.status === "Currently Airing" ? "Airing" : m.status === "Not yet aired" ? "Upcoming" : "Finished",
+      format: (m.type as string) === "Movie" ? "Movie" : (m.type as string) === "OVA" ? "OVA" : (m.type as string) === "ONA" ? "ONA" : "TV",
+      genres,
+      studios: (m.studios as { name: string }[] || []).map((s) => s.name),
+      releaseYear: (m.year as number) || new Date().getFullYear(),
+      season: "Winter" as "Winter" | "Spring" | "Summer" | "Fall",
+      subbed: true,
+      dubbed: false,
+      episodeCount: (m.episodes as number) || 0,
+    };
+  });
+}
+
+async function fetchTopAnimeAniList(filter?: string, page = 1, limit = 10) {
   let sort = "POPULARITY_DESC";
   let status: string | undefined;
   if (filter === "airing") { status = "RELEASING"; sort = "SCORE_DESC"; }
@@ -418,7 +566,12 @@ export async function fetchSchedule(day?: string) {
       media = res.data.Page.media.map(mapAnilistToAnime);
       scheduleCache.set(cacheKey, { data: media, ts: Date.now() });
     } catch {
-      return [];
+      try {
+        media = await fetchScheduleJikan();
+        scheduleCache.set(cacheKey, { data: media, ts: Date.now() });
+      } catch {
+        return [];
+      }
     }
   }
 
@@ -430,6 +583,47 @@ export async function fetchSchedule(day?: string) {
   }
 
   return media;
+}
+
+async function fetchScheduleJikan(): Promise<Anime[]> {
+  const res = await fetch(`${JIKAN_BASE}/seasons/now?page=1&limit=25`, {
+    signal: AbortSignal.timeout(15000),
+  });
+  if (!res.ok) throw new Error(`Jikan ${res.status}`);
+  const data = await res.json();
+
+  return (data.data || []).map((m: Record<string, unknown>): Anime => {
+    const images = m.images as Record<string, Record<string, string>> | undefined;
+    const jpg = images?.jpg;
+    const img = jpg?.large_image_url || jpg?.image_url || "";
+    const genres = (m.genres as { name: string }[] || []).map((g) => g.name);
+    const broadcast = m.broadcast as { day?: string; time?: string; timezone?: string } | undefined;
+    const title = (m.title_english as string) || (m.title as string) || "";
+    const dayName = broadcast?.day?.replace(/s$/, "") || "";
+    const time = broadcast?.time || "";
+
+    return {
+      id: m.mal_id as number,
+      title,
+      titleJapanese: (m.title_japanese as string) || undefined,
+      coverImage: img,
+      backdropImage: img,
+      synopsis: (m.synopsis as string)?.slice(0, 500) || "No synopsis available.",
+      score: (m.score as number) || 0,
+      episodes: (m.episodes as number) || 0,
+      status: m.airing ? "Airing" : "Finished",
+      format: (m.type as string) === "Movie" ? "Movie" : (m.type as string) === "OVA" ? "OVA" : (m.type as string) === "ONA" ? "ONA" : "TV",
+      genres,
+      studios: (m.studios as { name: string }[] || []).map((s) => s.name),
+      releaseYear: (m.year as number) || new Date().getFullYear(),
+      season: ((m.season as string) || "Winter") as "Winter" | "Spring" | "Summer" | "Fall",
+      subbed: true,
+      dubbed: false,
+      episodeCount: (m.episodes as number) || 0,
+      broadcastDay: dayName.charAt(0).toUpperCase() + dayName.slice(1),
+      broadcastTime: time,
+    };
+  });
 }
 
 export async function fetchRandomAnime() {
