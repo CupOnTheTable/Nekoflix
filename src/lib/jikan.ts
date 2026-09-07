@@ -24,6 +24,7 @@ interface AniListMedia {
   season: string | null;
   seasonYear: number | null;
   nextAiringEpisode: { episode: number; airingAt: number } | null;
+  broadcast: { day: string | null; time: string | null; timezone: string | null } | null;
   duration: number | null;
   characters?: {
     edges: {
@@ -149,13 +150,15 @@ function mapAnilistToAnime(m: AniListMedia): Anime {
     : m.season === "FALL" ? "Fall"
     : "Winter";
 
-  const broadcastDay = m.nextAiringEpisode?.airingAt
-    ? new Date(m.nextAiringEpisode.airingAt * 1000).toLocaleDateString("en-US", { weekday: "long" })
-    : undefined;
+  const broadcastDay = m.broadcast?.day
+    ? m.broadcast.day.charAt(0) + m.broadcast.day.slice(1).toLowerCase()
+    : m.nextAiringEpisode?.airingAt
+      ? new Date(m.nextAiringEpisode.airingAt * 1000).toLocaleDateString("en-US", { weekday: "long" })
+      : undefined;
 
-  const broadcastTime = m.nextAiringEpisode?.airingAt
+  const broadcastTime = m.broadcast?.time || (m.nextAiringEpisode?.airingAt
     ? new Date(m.nextAiringEpisode.airingAt * 1000).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false })
-    : undefined;
+    : undefined);
 
   return {
     id: m.idMal || m.id,
@@ -680,6 +683,7 @@ export async function fetchSchedule(day?: string) {
           startDate { year month day }
           season seasonYear
           nextAiringEpisode { episode airingAt }
+          broadcast { day time timezone }
           duration
         }
         pageInfo { total lastPage hasNextPage }
@@ -687,7 +691,7 @@ export async function fetchSchedule(day?: string) {
     }`;
 
     try {
-      const res = await directAniListFetch<AniListResponse>(SCHEDULE_QUERY, { page: 1, limit: 50 });
+      const res = await directAniListFetch<AniListResponse>(SCHEDULE_QUERY, { page: 1, limit: 100 });
       media = res.data.Page.media.map(mapAnilistToAnime);
       scheduleCache.set(cacheKey, { data: media, ts: Date.now() });
     } catch {
