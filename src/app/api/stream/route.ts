@@ -61,17 +61,20 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const embedId = searchParams.get("embedId");
   const malId = searchParams.get("malId");
+  const directUrl = searchParams.get("url");
   const episode = searchParams.get("episode") || "1";
   const language = searchParams.get("lang") || "sub";
 
-  if (!embedId && !malId) {
-    return NextResponse.json({ error: "embedId or malId required" }, { status: 400 });
+  if (!embedId && !malId && !directUrl) {
+    return NextResponse.json({ error: "embedId, malId, or url required" }, { status: 400 });
   }
 
   try {
     let megaplayUrl: string;
 
-    if (embedId) {
+    if (directUrl) {
+      megaplayUrl = directUrl;
+    } else if (embedId) {
       megaplayUrl = `https://megaplay.buzz/stream/s-2/${embedId}/${language}`;
     } else {
       megaplayUrl = `https://megaplay.buzz/stream/mal/${malId}/${episode}/${language}`;

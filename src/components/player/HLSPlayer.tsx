@@ -15,6 +15,7 @@ interface Subtitle {
 
 interface HLSPlayerProps {
   embedId: string | null;
+  directUrl?: string | null;
   language?: "sub" | "dub";
   title?: string;
   malId?: string | null;
@@ -28,6 +29,7 @@ interface HLSPlayerProps {
 
 export default function HLSPlayer({
   embedId,
+  directUrl,
   language = "sub",
   title,
   malId,
@@ -76,7 +78,9 @@ export default function HLSPlayer({
 
     try {
       let url: string;
-      if (embedId) {
+      if (directUrl) {
+        url = `/api/stream?url=${encodeURIComponent(directUrl)}`;
+      } else if (embedId) {
         url = `/api/stream?embedId=${embedId}&lang=${language}`;
       } else if (malId) {
         url = `/api/stream?malId=${malId}&episode=${episodeNumber || 1}&lang=${language}`;
@@ -197,7 +201,7 @@ export default function HLSPlayer({
       setError("Stream could not be loaded");
       setLoading(false);
     }
-  }, [embedId, language, malId, episodeNumber]);
+  }, [embedId, directUrl, language, malId, episodeNumber]);
 
   useEffect(() => {
     loadStream();

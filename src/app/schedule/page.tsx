@@ -41,33 +41,59 @@ function airingToLocalTime(airingAt: number): string {
 }
 
 function buildScheduleEntry(anime: Anime): ScheduleEntry | null {
-  if (!anime.airingAt) return null;
+  const day = anime.airingAt
+    ? airingToLocalDay(anime.airingAt)
+    : anime.broadcastDay || null;
+  if (!day) return null;
+
+  const time = anime.airingAt
+    ? airingToLocalTime(anime.airingAt)
+    : anime.broadcastTime || null;
+
   return {
     id: anime.id,
     title: anime.title,
     coverImage: anime.coverImage,
     episodeNumber: anime.episodeCount,
-    broadcastTime: airingToLocalTime(anime.airingAt),
-    broadcastDay: airingToLocalDay(anime.airingAt),
-    airingAt: anime.airingAt,
+    broadcastTime: time || "00:00",
+    broadcastDay: day,
+    airingAt: anime.airingAt || 0,
   };
 }
 
 interface HourGroup {
-  hour: number;
+  hour: number | null;
+  label: string;
   entries: ScheduleEntry[];
 }
 
 function groupByHour(entries: ScheduleEntry[]): HourGroup[] {
-  const map = new Map<number, ScheduleEntry[]>();
+  const timed: Map<number, ScheduleEntry[]> = new Map();
+  const untimed: ScheduleEntry[] = [];
+
   for (const entry of entries) {
+    if (!entry.airingAt) {
+      untimed.push(entry);
+      continue;
+    }
     const h = parseInt(entry.broadcastTime.split(":")[0], 10);
-    if (!map.has(h)) map.set(h, []);
-    map.get(h)!.push(entry);
+    if (!timed.has(h)) timed.set(h, []);
+    timed.get(h)!.push(entry);
   }
-  return Array.from(map.entries())
+
+  const groups: HourGroup[] = Array.from(timed.entries())
     .sort(([a], [b]) => a - b)
-    .map(([hour, entries]) => ({ hour, entries }));
+    .map(([hour, entries]) => ({
+      hour,
+      label: `${String(hour).padStart(2, "0")}:00`,
+      entries,
+    }));
+
+  if (untimed.length > 0) {
+    groups.push({ hour: null, label: "TBA", entries: untimed });
+  }
+
+  return groups;
 }
 
 function parseBroadcastMinutes(time: string): number {
@@ -101,25 +127,22 @@ export default function SchedulePage() {
 
   const selectedDayName = WEEKDAY_FULL[(selectedDay + 1) % 7];
 
-  const sortedEntries = useMemo(() => {
+  const sortedByTime = useMemo(() => {
     return allAnime
       .map(buildScheduleEntry)
-      .filter((e): e is ScheduleEntry => e !== null && e.broadcastDay === selectedDayName);
+      .filter((e): e is ScheduleEntry => e !== null && e.broadcastDay === selectedDayName)
+      .sort((a, b) => {
+        const mA = a.airingAt ? parseBroadcastMinutes(a.broadcastTime) : 9999;
+        const mB = b.airingAt ? parseBroadcastMinutes(b.broadcastTime) : 9999;
+        return mA - mB;
+      });
   }, [allAnime, selectedDayName]);
-
-  const sortedByTime = useMemo(() => {
-    return [...sortedEntries].sort(
-      (a, b) => parseBroadcastMinutes(a.broadcastTime) - parseBroadcastMinutes(b.broadcastTime)
-    );
-  }, [sortedEntries]);
 
   const hourGroups = useMemo(() => groupByHour(sortedByTime), [sortedByTime]);
 
   const quickNav = useMemo(() => {
     const yesterday = (todayIndex - 1 + 7) % 7;
     const tomorrow = (todayIndex + 1) % 7;
-    const prevWeekIdx = todayIndex;
-    const nextWeekendIdx = (todayIndex + 5) % 7;
     return [
       { label: "Yesterday", dayIndex: yesterday },
       { label: "Today", dayIndex: todayIndex },
@@ -208,10 +231,10 @@ export default function SchedulePage() {
       ) : (
         <div className="space-y-3">
           {hourGroups.map((group) => (
-            <details key={group.hour} open className="group/h">
+            <details key={group.hour ?? "tba"} open className="group/h">
               <summary className="flex cursor-pointer list-none items-center gap-2 py-1 text-[13px] font-bold text-muted marker:hidden [&::-webkit-details-marker]:hidden">
                 <ChevronRight className="h-3.5 w-3.5 shrink-0 transition-transform group-open/h:rotate-90" />
-                {String(group.hour).padStart(2, "0")}:00
+                {group.label}
                 <span className="text-[11px] font-semibold text-muted/60">
                   {group.entries.length}
                 </span>

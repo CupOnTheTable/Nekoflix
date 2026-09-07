@@ -635,7 +635,7 @@ async function directAniListFetch<T>(query: string, variables: Record<string, un
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 10000);
+      const timeout = setTimeout(() => controller.abort(), 5000);
       const res = await fetch(ANILIST_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json", Accept: "application/json" },
@@ -651,10 +651,10 @@ async function directAniListFetch<T>(query: string, variables: Record<string, un
       return await res.json();
     } catch (err: unknown) {
       if (err instanceof DOMException && err.name === "AbortError") {
-        if (attempt < 2) { await new Promise((r) => setTimeout(r, 1000)); continue; }
+        if (attempt < 2) { await new Promise((r) => setTimeout(r, 500)); continue; }
       }
       if (attempt === 2) throw err;
-      await new Promise((r) => setTimeout(r, 1000));
+      await new Promise((r) => setTimeout(r, 500));
     }
   }
   throw new Error("AniList API failed");

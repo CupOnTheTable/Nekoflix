@@ -95,6 +95,10 @@ export default function WatchPage() {
 
   const currentEpisode = series?.episodes?.find((ep) => ep.number === selectedEp);
   const embedId = currentEpisode?.episode_embed_id?.toString();
+  const embedUrl = language === "dub"
+    ? currentEpisode?.embed_url?.dub
+    : currentEpisode?.embed_url?.sub;
+  const embedUrlFallback = currentEpisode?.embed_url?.sub || currentEpisode?.embed_url?.dub;
 
   const handleNext = useCallback(() => {
     if (series && selectedEp < series.episodes.length) {
@@ -232,8 +236,9 @@ export default function WatchPage() {
         {embedId && (
           <div className="px-4">
             <HLSPlayer
-              key={`${embedId}-${language}`}
+              key={`${embedUrl || embedId}-${language}`}
               embedId={embedId}
+              directUrl={embedUrl || embedUrlFallback || null}
               language={language}
               title={episodeLabel}
               malId={series.mal_id || fallback?.id?.toString() || null}

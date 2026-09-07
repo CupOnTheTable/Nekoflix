@@ -68,7 +68,7 @@ async function anikotoFetch<T>(path: string, ttl = 5 * 60 * 1000): Promise<T> {
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 12000);
+      const timeout = setTimeout(() => controller.abort(), 8000);
       const res = await fetch(url, {
         headers: { Accept: "application/json" },
         signal: controller.signal,
@@ -86,10 +86,10 @@ async function anikotoFetch<T>(path: string, ttl = 5 * 60 * 1000): Promise<T> {
       return data;
     } catch (err: unknown) {
       if (err instanceof DOMException && err.name === "AbortError") {
-        if (attempt < 2) { await new Promise((r) => setTimeout(r, 1500)); continue; }
+        if (attempt < 2) { await new Promise((r) => setTimeout(r, 1000)); continue; }
       }
       if (attempt === 2) throw err;
-      await new Promise((r) => setTimeout(r, 1500));
+      await new Promise((r) => setTimeout(r, 1000));
     }
   }
   throw new Error("AniKoto API failed");
