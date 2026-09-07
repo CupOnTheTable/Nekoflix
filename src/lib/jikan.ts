@@ -556,8 +556,75 @@ export async function fetchAnimeById(id: number) {
     const res = await anilistQuery<AniListSingleResponse>(BY_ID_QUERY, { idMal: id });
     return mapAnilistToAnime(res.data.Media);
   } catch {
-    throw new Error("Anime not found");
+    try {
+      return await fetchAnimeByIdJikan(id);
+    } catch {
+      try {
+        return await fetchAnimeByIdAniKoto(id);
+      } catch {
+        throw new Error("Anime not found");
+      }
+    }
   }
+}
+
+async function fetchAnimeByIdJikan(id: number): Promise<Anime> {
+  const res = await fetch(`${JIKAN_BASE}/anime/${id}`, {
+    signal: AbortSignal.timeout(15000),
+  });
+  if (!res.ok) throw new Error(`Jikan ${res.status}`);
+  const m = await res.json();
+  const data = m.data;
+  const images = data.images as Record<string, Record<string, string>> | undefined;
+  const jpg = images?.jpg;
+  const img = jpg?.large_image_url || jpg?.image_url || "";
+  return {
+    id: data.mal_id,
+    title: data.title_english || data.title,
+    titleJapanese: data.title_japanese || undefined,
+    coverImage: img,
+    backdropImage: img,
+    synopsis: data.synopsis?.slice(0, 500) || "No synopsis available.",
+    score: data.score || 0,
+    episodes: data.episodes || 0,
+    status: data.status === "Currently Airing" ? "Airing" : data.status === "Not yet aired" ? "Upcoming" : "Finished",
+    format: data.type === "Movie" ? "Movie" : data.type === "OVA" ? "OVA" : data.type === "ONA" ? "ONA" : "TV",
+    genres: (data.genres || []).map((g: { name: string }) => g.name),
+    studios: (data.studios || []).map((s: { name: string }) => s.name),
+    releaseYear: data.year || new Date().getFullYear(),
+    season: (data.season || "Winter") as "Winter" | "Spring" | "Summer" | "Fall",
+    subbed: true,
+    dubbed: false,
+    episodeCount: data.episodes || 0,
+    duration: parseInt(data.duration) || undefined,
+    broadcastDay: data.broadcast?.day?.replace(/s$/, "") || undefined,
+    broadcastTime: data.broadcast?.time || undefined,
+  };
+}
+
+async function fetchAnimeByIdAniKoto(id: number): Promise<Anime> {
+  const { getRecentAnime } = await import("./anikoto");
+  const all = await getRecentAnime(1, 100);
+  const match = all.find((a) => parseInt(a.mal_id) === id);
+  if (!match) throw new Error("Not found on AniKoto");
+  return {
+    id: parseInt(match.mal_id) || match.id,
+    title: match.title,
+    coverImage: match.poster,
+    backdropImage: match.background_image || match.poster,
+    synopsis: match.description || "No synopsis available.",
+    score: parseFloat(match.score) || 0,
+    episodes: parseInt(match.episodes) || 0,
+    status: match.status === "Currently Airing" ? "Airing" : "Finished",
+    format: "TV",
+    genres: match.terms_by_type?.genre || [],
+    studios: match.terms_by_type?.studios || [],
+    releaseYear: match.year || new Date().getFullYear(),
+    season: "Winter" as "Winter",
+    subbed: true,
+    dubbed: false,
+    episodeCount: parseInt(match.episodes) || 0,
+  };
 }
 
 async function directAniListFetch<T>(query: string, variables: Record<string, unknown>): Promise<T> {
