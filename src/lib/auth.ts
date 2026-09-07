@@ -5,14 +5,18 @@ import bcrypt from "bcryptjs";
 const SESSION_COOKIE = "session";
 
 export async function getCurrentUser() {
-  const cookieStore = await cookies();
-  const sessionId = cookieStore.get(SESSION_COOKIE)?.value;
-  if (!sessionId) return null;
-  const user = await prisma.user.findUnique({
-    where: { id: sessionId },
-    select: { id: true, email: true, name: true, avatar: true, timezone: true, audioPref: true, theme: true },
-  });
-  return user;
+  try {
+    const cookieStore = await cookies();
+    const sessionId = cookieStore.get(SESSION_COOKIE)?.value;
+    if (!sessionId) return null;
+    const user = await prisma.user.findUnique({
+      where: { id: sessionId },
+      select: { id: true, email: true, name: true, avatar: true, timezone: true, audioPref: true, theme: true },
+    });
+    return user;
+  } catch {
+    return null;
+  }
 }
 
 export async function createUser(email: string, name: string, password: string) {
