@@ -1,10 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Play } from "lucide-react";
-import { timeUntil } from "@/lib/utils";
 
 export interface ScheduleEntry {
   id: number;
@@ -13,6 +12,7 @@ export interface ScheduleEntry {
   episodeNumber: number;
   broadcastTime: string;
   broadcastDay: string;
+  airingAt: number;
 }
 
 export interface ScheduleRowProps {
@@ -20,15 +20,33 @@ export interface ScheduleRowProps {
   className?: string;
 }
 
+function formatRelativeTime(airingAt: number): string {
+  const now = Date.now();
+  const diff = airingAt * 1000 - now;
+  const absDiff = Math.abs(diff);
+  const hours = Math.floor(absDiff / (1000 * 60 * 60));
+  const minutes = Math.floor((absDiff % (1000 * 60 * 60)) / (1000 * 60));
+
+  let text: string;
+  if (hours > 24) {
+    const days = Math.floor(hours / 24);
+    text = `${days}d ${hours % 24}h`;
+  } else {
+    text = `${hours}h ${minutes}m`;
+  }
+
+  return diff > 0 ? `in ${text}` : `${text} ago`;
+}
+
 export function ScheduleRow({ entry, className }: ScheduleRowProps) {
-  const [countdown, setCountdown] = useState(() => timeUntil(entry.broadcastTime));
+  const [now, setNow] = useState(Date.now());
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      setCountdown(timeUntil(entry.broadcastTime));
-    }, 60000);
+    const interval = setInterval(() => setNow(Date.now()), 60000);
     return () => clearInterval(interval);
-  }, [entry.broadcastTime]);
+  }, []);
+
+  const countdown = useMemo(() => formatRelativeTime(entry.airingAt), [entry.airingAt, now]);
 
   return (
     <Link

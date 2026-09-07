@@ -49,6 +49,7 @@ function buildScheduleEntry(anime: Anime): ScheduleEntry | null {
     episodeNumber: anime.episodeCount,
     broadcastTime: airingToLocalTime(anime.airingAt),
     broadcastDay: airingToLocalDay(anime.airingAt),
+    airingAt: anime.airingAt,
   };
 }
 
@@ -67,6 +68,11 @@ function groupByHour(entries: ScheduleEntry[]): HourGroup[] {
   return Array.from(map.entries())
     .sort(([a], [b]) => a - b)
     .map(([hour, entries]) => ({ hour, entries }));
+}
+
+function parseBroadcastMinutes(time: string): number {
+  const [h, m] = time.split(":").map(Number);
+  return h * 60 + m;
 }
 
 export default function SchedulePage() {
@@ -109,6 +115,18 @@ export default function SchedulePage() {
 
   const hourGroups = useMemo(() => groupByHour(sortedByTime), [sortedByTime]);
 
+  const quickNav = useMemo(() => {
+    const yesterday = (todayIndex - 1 + 7) % 7;
+    const tomorrow = (todayIndex + 1) % 7;
+    const prevWeekIdx = todayIndex;
+    const nextWeekendIdx = (todayIndex + 5) % 7;
+    return [
+      { label: "Yesterday", dayIndex: yesterday },
+      { label: "Today", dayIndex: todayIndex },
+      { label: "Tomorrow", dayIndex: tomorrow },
+    ];
+  }, [todayIndex]);
+
   return (
     <div>
       <div className="mb-5">
@@ -116,6 +134,24 @@ export default function SchedulePage() {
           Estimated airing times
         </div>
         <h1 className="mt-1 text-2xl font-bold text-foreground">Schedule</h1>
+      </div>
+
+      <div className="mb-4 flex flex-wrap gap-1.5">
+        {quickNav.map(({ label, dayIndex }) => (
+          <button
+            key={label}
+            type="button"
+            onClick={() => setSelectedDay(dayIndex)}
+            className={cn(
+              "rounded-full px-3 py-1.5 text-[12px] font-semibold transition-colors",
+              selectedDay === dayIndex
+                ? "bg-accent/20 text-accent"
+                : "bg-surface text-muted hover:text-foreground"
+            )}
+          >
+            {label}
+          </button>
+        ))}
       </div>
 
       <div className="mb-6 flex items-end gap-1 overflow-x-auto pb-1">
@@ -127,7 +163,6 @@ export default function SchedulePage() {
               key={day}
               type="button"
               onClick={() => setSelectedDay(index)}
-              data-on={isSelected}
               className="group flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-xl px-2 py-2 transition-colors hover:bg-surface-hover"
             >
               <span
@@ -192,9 +227,4 @@ export default function SchedulePage() {
       )}
     </div>
   );
-}
-
-function parseBroadcastMinutes(time: string): number {
-  const [h, m] = time.split(":").map(Number);
-  return h * 60 + m;
 }
