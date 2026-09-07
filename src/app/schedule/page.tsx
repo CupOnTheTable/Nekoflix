@@ -8,7 +8,6 @@ import { ScheduleRow } from "@/components/anime/ScheduleRow";
 import type { ScheduleEntry } from "@/components/anime/ScheduleRow";
 import type { Anime } from "@/types";
 
-const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
 const WEEKDAY_FULL = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
 function getTodayIndex(): number {
@@ -85,7 +84,7 @@ function groupByHour(entries: ScheduleEntry[]): HourGroup[] {
     .sort(([a], [b]) => a - b)
     .map(([hour, entries]) => ({
       hour,
-      label: `${String(hour).padStart(2, "0")}:00`,
+      label: `${String(hour).padStart(2, "0")} Uhr`,
       entries,
     }));
 
@@ -178,7 +177,7 @@ export default function SchedulePage() {
       </div>
 
       <div className="mb-6 flex items-end gap-1 overflow-x-auto pb-1">
-        {WEEKDAYS.map((day, index) => {
+        {WEEKDAY_FULL.map((day, index) => {
           const isSelected = index === selectedDay;
           const isToday = index === todayIndex;
           return (
@@ -206,7 +205,7 @@ export default function SchedulePage() {
                     : "text-transparent group-hover:text-muted"
                 )}
               >
-                {isToday ? `Today \u00B7 ${formatDayLabel(index)}` : formatDayLabel(index)}
+                {isToday ? `Today · ${formatDayLabel(index)}` : formatDayLabel(index)}
               </span>
             </button>
           );
@@ -225,7 +224,7 @@ export default function SchedulePage() {
       ) : hourGroups.length === 0 ? (
         <EmptyState
           icon={<Calendar className="h-12 w-12" />}
-          title={`No anime airing on ${WEEKDAYS[selectedDay]}s`}
+          title={`No anime airing on ${WEEKDAY_FULL[selectedDay]}s`}
           description="Check back later or browse other days."
         />
       ) : (
