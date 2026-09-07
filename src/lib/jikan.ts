@@ -154,7 +154,7 @@ function mapAnilistToAnime(m: AniListMedia): Anime {
     : undefined;
 
   const broadcastTime = m.nextAiringEpisode?.airingAt
-    ? new Date(m.nextAiringEpisode.airingAt * 1000).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Tokyo" })
+    ? new Date(m.nextAiringEpisode.airingAt * 1000).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false })
     : undefined;
 
   return {
@@ -177,6 +177,7 @@ function mapAnilistToAnime(m: AniListMedia): Anime {
     episodeCount: m.episodes ?? 0,
     broadcastDay,
     broadcastTime,
+    airingAt: m.nextAiringEpisode?.airingAt || undefined,
     duration: m.duration || undefined,
     characters: m.characters?.edges?.map((e) => ({
       id: e.node.id,
@@ -660,9 +661,6 @@ async function directAniListFetch<T>(query: string, variables: Record<string, un
 }
 
 export async function fetchSchedule(day?: string) {
-  const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-  const targetDay = day ? dayNames.findIndex(d => d.toLowerCase() === day.toLowerCase()) : -1;
-
   const cacheKey = "schedule_all_v2";
   const cached = scheduleCache.get(cacheKey);
   let media: Anime[];
@@ -705,13 +703,6 @@ export async function fetchSchedule(day?: string) {
         }
       }
     }
-  }
-
-  if (targetDay !== -1) {
-    return media.filter((a) => {
-      if (!a.broadcastDay) return false;
-      return a.broadcastDay.toLowerCase() === dayNames[targetDay].toLowerCase();
-    });
   }
 
   return media;
@@ -779,11 +770,12 @@ async function fetchScheduleAniKoto(): Promise<Anime[]> {
     dubbed: false,
     episodeCount: parseInt(a.episodes) || 0,
     broadcastDay: a.next_air_schedule_time
-      ? new Date(a.next_air_schedule_time * 1000).toLocaleDateString("en-US", { weekday: "long", timeZone: "Asia/Tokyo" })
+      ? new Date(a.next_air_schedule_time * 1000).toLocaleDateString("en-US", { weekday: "long" })
       : undefined,
     broadcastTime: a.next_air_schedule_time
-      ? new Date(a.next_air_schedule_time * 1000).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Tokyo" })
+      ? new Date(a.next_air_schedule_time * 1000).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false })
       : undefined,
+    airingAt: a.next_air_schedule_time || undefined,
   }));
 }
 
