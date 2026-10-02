@@ -237,7 +237,7 @@ export default function MyLibraryPage() {
             >
               <div
                 className="relative aspect-video cursor-pointer bg-zinc-800"
-                onClick={() => router.push(`/watch/${video.id}`)}
+                onClick={() => router.push(`/watch/${video.id}/1`)}
               >
                 {video.thumbnailUrl ? (
                   <img
@@ -270,7 +270,7 @@ export default function MyLibraryPage() {
 
                 <div className="mt-3 flex gap-2">
                   <button
-                    onClick={() => router.push(`/watch/${video.id}`)}
+                    onClick={() => router.push(`/watch/${video.id}/1`)}
                     className="flex items-center gap-1.5 rounded-lg bg-purple-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-purple-500 transition-colors"
                   >
                     <Play className="h-3 w-3" />

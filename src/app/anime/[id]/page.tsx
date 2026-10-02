@@ -208,7 +208,7 @@ export default function AnimeDetailPage() {
                 <div className="mt-4 flex flex-wrap gap-3">
                   {watchable ? (
                     <Link
-                      href={`/watch/${anime.id}`}
+                      href={`/watch/${anime.id}/1`}
                       className="inline-flex items-center gap-2 rounded-xl bg-foreground px-5 py-2.5 text-sm font-bold text-background transition-all hover:bg-foreground/90"
                     >
                       <Play className="h-4 w-4 fill-current" />

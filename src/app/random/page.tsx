@@ -147,7 +147,7 @@ export default function RandomPage() {
 
               <div className="flex items-center gap-3 mt-6">
                 <Link
-                  href={`/watch/${result.id}`}
+                  href={`/watch/${result.id}/1`}
                   className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 px-6 py-3 text-sm font-semibold text-white hover:from-purple-500 hover:to-pink-500 transition-all shadow-lg shadow-purple-600/20"
                 >
                   <Play className="h-4 w-4 fill-white" />

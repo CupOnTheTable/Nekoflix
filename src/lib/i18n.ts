@@ -104,6 +104,8 @@ export const PLAYER = {
   retry: "Retry",
   sourceError: "Could not load video",
   sourceErrorDescription: "The current stream failed. Try another server or retry.",
+  resume: "Resume",
+  startOver: "Start over",
 };
 
 export const SCHEDULE = {

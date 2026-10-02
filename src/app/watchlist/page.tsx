@@ -128,9 +128,17 @@ export default function WatchlistPage() {
     }
   }, [filteredItems, sortBy]);
 
+
+
   const updateItem = useCallback(
     async (id: string, updates: Partial<Pick<WatchlistEntry, "status" | "progress" | "score">>) => {
+      let previousItem: WatchlistEntry | undefined;
+      setItems((prev) => {
+        previousItem = prev.find((i) => i.id === id);
+        return prev.map((item) => (item.id === id ? { ...item, ...updates } : item));
+      });
       setActionLoading((prev) => new Set(prev).add(id));
+
       try {
         const res = await fetch("/api/watchlist", {
           method: "PUT",
@@ -142,9 +150,15 @@ export default function WatchlistPage() {
           setItems((prev) =>
             prev.map((item) => (item.id === id ? { ...item, ...data.item } : item))
           );
+        } else {
+          throw new Error("Update failed");
         }
       } catch {
-        // silent
+        if (previousItem) {
+          setItems((prev) =>
+            prev.map((item) => (item.id === id ? previousItem! : item))
+          );
+        }
       } finally {
         setActionLoading((prev) => {
           const next = new Set(prev);
@@ -157,23 +171,29 @@ export default function WatchlistPage() {
   );
 
   const removeItem = useCallback(async (id: string) => {
+    let previousItems: WatchlistEntry[] = [];
+    setItems((prev) => {
+      previousItems = prev;
+      return prev.filter((item) => item.id !== id);
+    });
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
     setActionLoading((prev) => new Set(prev).add(id));
+
     try {
       const res = await fetch("/api/watchlist", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id }),
       });
-      if (res.ok) {
-        setItems((prev) => prev.filter((item) => item.id !== id));
-        setSelectedIds((prev) => {
-          const next = new Set(prev);
-          next.delete(id);
-          return next;
-        });
+      if (!res.ok) {
+        throw new Error("Delete failed");
       }
     } catch {
-      // silent
+      setItems(previousItems);
     } finally {
       setActionLoading((prev) => {
         const next = new Set(prev);
