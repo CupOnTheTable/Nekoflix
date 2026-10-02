@@ -7,6 +7,14 @@ export const dynamic = "force-dynamic";
 const STREAM_LIMIT = 30;
 const STREAM_WINDOW_MS = 60 * 1000;
 
+interface CachedStream {
+  data: Record<string, unknown>;
+  expiry: number;
+}
+
+const streamCache = new Map<string, CachedStream>();
+const STREAM_CACHE_TTL = 5 * 60 * 1000;
+
 export async function GET(req: NextRequest) {
   const ip = getClientIp(req);
   const limitResult = rateLimit(ip, STREAM_LIMIT, STREAM_WINDOW_MS, "stream");
@@ -37,9 +45,22 @@ export async function GET(req: NextRequest) {
       episode: episode ? Number(episode) : 1,
       language,
     };
+
+    const cacheKey = JSON.stringify(ctx);
+    const cached = streamCache.get(cacheKey);
+    if (cached && cached.expiry > Date.now()) {
+      const response: Record<string, unknown> = { ok: true, ...cached.data };
+      if (!debug) delete response.debug;
+      return NextResponse.json(response);
+    }
+
     console.log("[stream] resolving", JSON.stringify(ctx));
     const result = await getEpisodeSources(ctx, defaultProviderRegistry, true);
     console.log("[stream] providers", JSON.stringify(result.debug));
+
+    if (result.sources.length > 0) {
+      streamCache.set(cacheKey, { data: result as unknown as Record<string, unknown>, expiry: Date.now() + STREAM_CACHE_TTL });
+    }
 
     if (result.sources.length === 0) {
       const response: Record<string, unknown> = { error: "No stream sources found" };

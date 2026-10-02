@@ -101,7 +101,15 @@ class MegaPlayProvider implements StreamProvider {
 
     const urls: string[] = [];
 
-    // Try AniKoto embed_url first if we can find the series by MAL id
+    // Fast path: direct MAL/AniList URLs (avoids slow AniKoto search)
+    if (ctx.malId) {
+      urls.push(getMegaPlayUrlByMal(ctx.malId, episode, language));
+    }
+    if (ctx.aniListId) {
+      urls.push(getMegaPlayUrlByAniList(ctx.aniListId, episode, language));
+    }
+
+    // Fallback: Try AniKoto embed_url if we can find the series by MAL id
     if (ctx.malId) {
       try {
         const seriesInfo = await findSeriesByMalId(ctx.malId);
@@ -117,13 +125,6 @@ class MegaPlayProvider implements StreamProvider {
       } catch {
         // ignore and fall through
       }
-    }
-
-    if (ctx.malId) {
-      urls.push(getMegaPlayUrlByMal(ctx.malId, episode, language));
-    }
-    if (ctx.aniListId) {
-      urls.push(getMegaPlayUrlByAniList(ctx.aniListId, episode, language));
     }
 
     const sources: StreamSource[] = [];

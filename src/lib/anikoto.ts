@@ -121,8 +121,15 @@ export async function searchAnimeAniKoto(query: string) {
 }
 
 export async function findSeriesByMalId(malId: number): Promise<AniKotoAnime | null> {
-  const all = await getRecentAnime(1, 100);
-  return all.find((a) => a.mal_id === String(malId)) || null;
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 5000);
+    const all = await getRecentAnime(1, 30);
+    clearTimeout(timer);
+    return all.find((a) => a.mal_id === String(malId)) || null;
+  } catch {
+    return null;
+  }
 }
 
 export function getMegaPlayUrl(episodeId: number, language: "sub" | "dub" = "sub") {
