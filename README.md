@@ -118,6 +118,8 @@ If the migration step times out on Vercel, run migrations locally instead:
 DIRECT_URL="postgresql://..." npm run db:migrate
 ```
 
+Or use the included GitHub Action (`.github/workflows/migrate.yml`) to apply migrations automatically on every push to `main` that changes the `prisma/` directory. Add your Neon direct connection string as a repository secret named `DIRECT_URL` under **Settings → Secrets and variables → Actions**.
+
 ### Render
 
 Use the included `render.yaml` blueprint. Add `DIRECT_URL` as a sync-disabled environment variable in the Render dashboard (required for Prisma migrations on Neon).
