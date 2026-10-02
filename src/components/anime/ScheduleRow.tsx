@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { memo, useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Play } from "lucide-react";
@@ -38,7 +38,7 @@ function formatRelativeTime(airingAt: number): string {
   return diff > 0 ? `in ${text}` : `${text} ago`;
 }
 
-export function ScheduleRow({ entry, className }: ScheduleRowProps) {
+function ScheduleRowComponent({ entry, className }: ScheduleRowProps) {
   const [now, setNow] = useState(Date.now());
 
   useEffect(() => {
@@ -84,3 +84,5 @@ export function ScheduleRow({ entry, className }: ScheduleRowProps) {
     </Link>
   );
 }
+
+export const ScheduleRow = memo(ScheduleRowComponent);

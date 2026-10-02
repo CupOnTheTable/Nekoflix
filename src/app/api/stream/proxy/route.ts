@@ -4,19 +4,32 @@ const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,
 
 export const dynamic = "force-dynamic";
 
+function toAbsoluteUrl(relativeOrAbsolute: string, base: string): string {
+  const trimmed = relativeOrAbsolute.trim();
+  if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+    return trimmed;
+  }
+  return base + trimmed;
+}
+
 function rewriteM3u8(content: string, originalUrl: string, proxyBase: string): string {
   const base = originalUrl.substring(0, originalUrl.lastIndexOf("/") + 1);
   return content
     .split("\n")
     .map((line) => {
       const trimmed = line.trim();
-      if (!trimmed || trimmed.startsWith("#")) return line;
-      let absolute: string;
-      if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
-        absolute = trimmed;
-      } else {
-        absolute = base + trimmed;
+      if (!trimmed) return line;
+
+      // Rewrite AES-128 key URIs
+      if (trimmed.startsWith("#EXT-X-KEY")) {
+        return line.replace(/URI="([^"]+)"/, (_, uri) => {
+          const absolute = toAbsoluteUrl(uri, base);
+          return `URI="${proxyBase}?url=${encodeURIComponent(absolute)}"`;
+        });
       }
+
+      if (trimmed.startsWith("#")) return line;
+      const absolute = toAbsoluteUrl(trimmed, base);
       return `${proxyBase}?url=${encodeURIComponent(absolute)}`;
     })
     .join("\n");
@@ -34,8 +47,13 @@ export async function GET(req: NextRequest) {
     const res = await fetch(targetUrl, {
       headers: {
         "User-Agent": UA,
+        "Accept": "*/*",
+        "Accept-Language": "en-US,en;q=0.9",
         "Referer": "https://megaplay.buzz/",
         "Origin": "https://megaplay.buzz",
+        "Sec-Fetch-Dest": "empty",
+        "Sec-Fetch-Mode": "cors",
+        "Sec-Fetch-Site": "cross-site",
       },
     });
 

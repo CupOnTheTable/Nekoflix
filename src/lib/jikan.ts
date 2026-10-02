@@ -11,7 +11,7 @@ interface AniListMedia {
   id: number;
   idMal: number | null;
   title: { romaji: string; english: string | null; native: string | null };
-  coverImage: { large: string; medium: string };
+  coverImage: { extraLarge: string | null; large: string; medium: string };
   bannerImage: string | null;
   description: string | null;
   averageScore: number | null;
@@ -178,8 +178,8 @@ function mapAnilistToAnime(m: AniListMedia): Anime {
     id: m.idMal || m.id,
     title: m.title.english || m.title.romaji,
     titleJapanese: m.title.native || undefined,
-    coverImage: m.coverImage.large || m.coverImage.medium,
-    backdropImage: m.bannerImage || (m.coverImage.large || m.coverImage.medium)?.replace("/medium/", "/large/").replace("/small/", "/large/"),
+    coverImage: m.coverImage.extraLarge || m.coverImage.large || m.coverImage.medium || `https://placehold.co/400x600/18181b/71717a?text=${encodeURIComponent(m.title.english || m.title.romaji || "Anime")}`,
+    backdropImage: m.bannerImage || m.coverImage.extraLarge || m.coverImage.large || m.coverImage.medium || `https://placehold.co/1920x1080/18181b/71717a?text=${encodeURIComponent(m.title.english || m.title.romaji || "Anime")}`,
     synopsis: m.description?.replace(/<[^>]*>/g, "").slice(0, 500) || "No synopsis available.",
     score: m.averageScore ? m.averageScore / 10 : 0,
     episodes: m.episodes ?? 0,
@@ -258,8 +258,8 @@ async function fetchAnimeSearchAniKoto(query: string, filters?: {
   let results = all.map((a): Anime => ({
     id: parseInt(a.mal_id) || a.id,
     title: a.title,
-    coverImage: a.poster,
-    backdropImage: a.background_image || a.poster,
+    coverImage: a.poster || `https://placehold.co/400x600/18181b/71717a?text=${encodeURIComponent(a.title || "Anime")}`,
+    backdropImage: a.background_image || a.poster || `https://placehold.co/1920x1080/18181b/71717a?text=${encodeURIComponent(a.title || "Anime")}`,
     synopsis: a.description || "No synopsis available.",
     score: parseFloat(a.score) || 0,
     episodes: parseInt(a.episodes) || 0,
@@ -323,15 +323,16 @@ async function fetchAnimeSearchJikan(query: string, filters?: {
   const mapJikanToAnime = (m: Record<string, unknown>): Anime => {
     const images = m.images as Record<string, Record<string, string>> | undefined;
     const jpg = images?.jpg;
-    const img = jpg?.large_image_url || jpg?.image_url || "";
+    const jpgImg = jpg?.large_image_url || jpg?.image_url || "";
     const genres = (m.genres as { name: string }[] || []).map((g) => g.name);
     const title = (m.title_english as string) || (m.title as string) || "";
+    const img = jpgImg || `https://placehold.co/400x600/18181b/71717a?text=${encodeURIComponent(title || "Anime")}`;
     return {
       id: m.mal_id as number,
       title,
       titleJapanese: (m.title_japanese as string) || undefined,
       coverImage: img,
-      backdropImage: img,
+      backdropImage: jpgImg || `https://placehold.co/1920x1080/18181b/71717a?text=${encodeURIComponent(title || "Anime")}`,
       synopsis: (m.synopsis as string)?.slice(0, 500) || "No synopsis available.",
       score: (m.score as number) || 0,
       episodes: (m.episodes as number) || 0,
@@ -399,7 +400,7 @@ async function fetchAnimeSearchAniList(query: string, filters?: {
       media(search: $search, type: ANIME, status: $status, sort: $sort) {
         id idMal
         title { romaji english native }
-        coverImage { large medium }
+        coverImage { extraLarge large medium }
         bannerImage
         description(asHtml: false)
         averageScore episodes status format genres
@@ -443,8 +444,8 @@ async function fetchTopAnimeAniKoto(limit: number): Promise<Anime[]> {
   return all.map((a): Anime => ({
     id: parseInt(a.mal_id) || a.id,
     title: a.title,
-    coverImage: a.poster,
-    backdropImage: a.background_image || a.poster,
+    coverImage: a.poster || `https://placehold.co/400x600/18181b/71717a?text=${encodeURIComponent(a.title || "Anime")}`,
+    backdropImage: a.background_image || a.poster || `https://placehold.co/1920x1080/18181b/71717a?text=${encodeURIComponent(a.title || "Anime")}`,
     synopsis: a.description || "No synopsis available.",
     score: parseFloat(a.score) || 0,
     episodes: parseInt(a.episodes) || 0,
@@ -476,14 +477,16 @@ async function fetchTopAnimeJikan(filter?: string, page = 1, limit = 10) {
   return (data.data || []).map((m: Record<string, unknown>): Anime => {
     const images = m.images as Record<string, Record<string, string>> | undefined;
     const jpg = images?.jpg;
-    const img = jpg?.large_image_url || jpg?.image_url || "";
+    const title = (m.title_english as string) || (m.title as string) || "";
+    const jpgImg = jpg?.large_image_url || jpg?.image_url || "";
+    const img = jpgImg || `https://placehold.co/400x600/18181b/71717a?text=${encodeURIComponent(title || "Anime")}`;
     const genres = (m.genres as { name: string }[] || []).map((g) => g.name);
     return {
       id: m.mal_id as number,
-      title: (m.title_english as string) || (m.title as string) || "",
+      title,
       titleJapanese: (m.title_japanese as string) || undefined,
       coverImage: img,
-      backdropImage: img,
+      backdropImage: jpgImg || `https://placehold.co/1920x1080/18181b/71717a?text=${encodeURIComponent(title || "Anime")}`,
       synopsis: (m.synopsis as string)?.slice(0, 500) || "No synopsis available.",
       score: (m.score as number) || 0,
       episodes: (m.episodes as number) || 0,
@@ -517,7 +520,7 @@ async function fetchTopAnimeAniList(filter?: string, page = 1, limit = 10) {
       media(type: ANIME, status: $status, sort: $sort) {
         id idMal
         title { romaji english native }
-        coverImage { large medium }
+        coverImage { extraLarge large medium }
         bannerImage
         description(asHtml: false)
         averageScore episodes status format genres
@@ -540,7 +543,7 @@ export async function fetchAnimeById(id: number) {
     Media(idMal: $idMal, type: ANIME) {
       id idMal
       title { romaji english native }
-      coverImage { large medium }
+      coverImage { extraLarge large medium }
       bannerImage
       description(asHtml: false)
       averageScore episodes status format genres duration
@@ -561,7 +564,7 @@ export async function fetchAnimeById(id: number) {
             mediaRecommendation {
               id idMal
               title { romaji english }
-              coverImage { large }
+              coverImage { extraLarge large }
               averageScore format status
             }
           }
@@ -595,13 +598,15 @@ async function fetchAnimeByIdJikan(id: number): Promise<Anime> {
   const data = m.data;
   const images = data.images as Record<string, Record<string, string>> | undefined;
   const jpg = images?.jpg;
-  const img = jpg?.large_image_url || jpg?.image_url || "";
+  const title = data.title_english || data.title || "";
+  const jpgImg = jpg?.large_image_url || jpg?.image_url || "";
+  const img = jpgImg || `https://placehold.co/400x600/18181b/71717a?text=${encodeURIComponent(title || "Anime")}`;
   return {
     id: data.mal_id,
-    title: data.title_english || data.title,
+    title,
     titleJapanese: data.title_japanese || undefined,
     coverImage: img,
-    backdropImage: img,
+    backdropImage: jpgImg || `https://placehold.co/1920x1080/18181b/71717a?text=${encodeURIComponent(title || "Anime")}`,
     synopsis: data.synopsis?.slice(0, 500) || "No synopsis available.",
     score: data.score || 0,
     episodes: data.episodes || 0,
@@ -628,8 +633,8 @@ async function fetchAnimeByIdAniKoto(id: number): Promise<Anime> {
   return {
     id: parseInt(match.mal_id) || match.id,
     title: match.title,
-    coverImage: match.poster,
-    backdropImage: match.background_image || match.poster,
+    coverImage: match.poster || `https://placehold.co/400x600/18181b/71717a?text=${encodeURIComponent(match.title || "Anime")}`,
+    backdropImage: match.background_image || match.poster || `https://placehold.co/1920x1080/18181b/71717a?text=${encodeURIComponent(match.title || "Anime")}`,
     synopsis: match.description || "No synopsis available.",
     score: parseFloat(match.score) || 0,
     episodes: parseInt(match.episodes) || 0,
@@ -691,7 +696,7 @@ export async function fetchSchedule(day?: string) {
         media(status: RELEASING, type: ANIME, sort: POPULARITY_DESC) {
           id idMal
           title { romaji english native }
-          coverImage { large medium }
+          coverImage { extraLarge large medium }
           averageScore episodes status format genres
           studios(isMain: true) { nodes { name } }
           startDate { year month day }
@@ -736,10 +741,11 @@ async function fetchScheduleJikan(): Promise<Anime[]> {
   return (data.data || []).map((m: Record<string, unknown>): Anime => {
     const images = m.images as Record<string, Record<string, string>> | undefined;
     const jpg = images?.jpg;
-    const img = jpg?.large_image_url || jpg?.image_url || "";
+    const title = (m.title_english as string) || (m.title as string) || "";
+    const jpgImg = jpg?.large_image_url || jpg?.image_url || "";
+    const img = jpgImg || `https://placehold.co/400x600/18181b/71717a?text=${encodeURIComponent(title || "Anime")}`;
     const genres = (m.genres as { name: string }[] || []).map((g) => g.name);
     const broadcast = m.broadcast as { day?: string; time?: string; timezone?: string } | undefined;
-    const title = (m.title_english as string) || (m.title as string) || "";
     const dayName = broadcast?.day?.replace(/s$/, "") || "";
     const time = broadcast?.time || "";
 
@@ -748,7 +754,7 @@ async function fetchScheduleJikan(): Promise<Anime[]> {
       title,
       titleJapanese: (m.title_japanese as string) || undefined,
       coverImage: img,
-      backdropImage: img,
+      backdropImage: jpgImg || `https://placehold.co/1920x1080/18181b/71717a?text=${encodeURIComponent(title || "Anime")}`,
       synopsis: (m.synopsis as string)?.slice(0, 500) || "No synopsis available.",
       score: (m.score as number) || 0,
       episodes: (m.episodes as number) || 0,
@@ -773,8 +779,8 @@ async function fetchScheduleAniKoto(): Promise<Anime[]> {
   return all.map((a): Anime => ({
     id: parseInt(a.mal_id) || a.id,
     title: a.title,
-    coverImage: a.poster,
-    backdropImage: a.background_image || a.poster,
+    coverImage: a.poster || `https://placehold.co/400x600/18181b/71717a?text=${encodeURIComponent(a.title || "Anime")}`,
+    backdropImage: a.background_image || a.poster || `https://placehold.co/1920x1080/18181b/71717a?text=${encodeURIComponent(a.title || "Anime")}`,
     synopsis: a.description || "No synopsis available.",
     score: parseFloat(a.score) || 0,
     episodes: parseInt(a.episodes) || 0,
@@ -804,7 +810,7 @@ export async function fetchRandomAnime() {
       media(type: ANIME, sort: RANDOM) {
         id idMal
         title { romaji english native }
-        coverImage { large medium }
+        coverImage { extraLarge large medium }
         bannerImage
         description(asHtml: false)
         averageScore episodes status format genres
@@ -837,7 +843,7 @@ export async function searchSuggestions(query: string) {
       media(search: $search, type: ANIME, sort: POPULARITY_DESC) {
         id idMal
         title { romaji english }
-        coverImage { medium }
+        coverImage { extraLarge medium }
         averageScore
       }
     }

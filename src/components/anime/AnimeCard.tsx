@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Star } from "lucide-react";
@@ -9,7 +10,7 @@ interface AnimeCardProps {
   anime: Anime;
 }
 
-export default function AnimeCard({ anime }: AnimeCardProps) {
+function AnimeCard({ anime }: AnimeCardProps) {
   const genres = anime.genres.slice(0, 3);
 
   return (
@@ -60,3 +61,5 @@ export default function AnimeCard({ anime }: AnimeCardProps) {
     </Link>
   );
 }
+
+export default memo(AnimeCard);

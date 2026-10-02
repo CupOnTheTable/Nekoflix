@@ -34,6 +34,7 @@ interface StreamSource {
 interface HLSPlayerProps {
   malId?: string | null;
   aniListId?: string | null;
+  seriesTitle?: string;
   language?: "sub" | "dub";
   title?: string;
   episodeNumber?: number;
@@ -49,6 +50,7 @@ const SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 2];
 export default function HLSPlayer({
   malId,
   aniListId,
+  seriesTitle,
   language = "sub",
   title,
   episodeNumber,
@@ -303,6 +305,7 @@ export default function HLSPlayer({
       const params = new URLSearchParams();
       if (malId) params.set("malId", malId);
       if (aniListId) params.set("aniListId", aniListId);
+      if (seriesTitle) params.set("title", seriesTitle);
       params.set("episode", String(episodeNumber || 1));
       params.set("lang", language);
 

@@ -6,6 +6,9 @@ import {
   getSeries,
 } from "./anikoto";
 
+const CONSUMET_BASE =
+  process.env.CONSUMET_API_URL || "https://api.consumet.org";
+
 export interface StreamSource {
   provider: string;
   label: string;
@@ -210,8 +213,155 @@ class MegaPlayBackupProvider implements StreamProvider {
   }
 }
 
+class ConsumetGogoProvider implements StreamProvider {
+  readonly name = "consumetGogo";
+
+  async getEpisodeSources(ctx: SourceContext): Promise<StreamSource[]> {
+    if (!ctx.title) return [];
+    const episode = ctx.episode ?? 1;
+
+    try {
+      // Search Gogoanime by title
+      const searchRes = await fetchWithTimeout(
+        `${CONSUMET_BASE}/anime/gogoanime/${encodeURIComponent(ctx.title)}`,
+        { headers: { "User-Agent": UA, Accept: "application/json" } },
+        8000
+      );
+      if (!searchRes.ok) return [];
+      const searchData = (await searchRes.json()) as {
+        results?: Array<{ id: string; title: string }>;
+      };
+      const first = searchData.results?.[0];
+      if (!first) return [];
+
+      // Get episode list
+      const infoRes = await fetchWithTimeout(
+        `${CONSUMET_BASE}/anime/gogoanime/info/${first.id}`,
+        { headers: { "User-Agent": UA, Accept: "application/json" } },
+        8000
+      );
+      if (!infoRes.ok) return [];
+      const infoData = (await infoRes.json()) as {
+        episodes?: Array<{ id: string; number: number }>;
+      };
+      const ep = infoData.episodes?.find((e) => e.number === episode);
+      if (!ep) return [];
+
+      // Get streaming links
+      const watchRes = await fetchWithTimeout(
+        `${CONSUMET_BASE}/anime/gogoanime/watch/${ep.id}`,
+        { headers: { "User-Agent": UA, Accept: "application/json" } },
+        8000
+      );
+      if (!watchRes.ok) return [];
+      const watchData = (await watchRes.json()) as {
+        sources?: Array<{ url: string; quality: string; isM3U8?: boolean }>;
+        subtitles?: Array<{ url: string; lang: string }>;
+      };
+
+      const sources: StreamSource[] = [];
+      for (const src of watchData.sources || []) {
+        if (!src.url) continue;
+        sources.push({
+          provider: this.name,
+          label: `Gogo ${src.quality || "Auto"}`,
+          url: src.isM3U8
+            ? `/api/stream/proxy?url=${encodeURIComponent(src.url)}`
+            : src.url,
+          intro: null,
+          outro: null,
+          subtitles: (watchData.subtitles || [])
+            .filter((s) => s.url)
+            .map((s) => ({
+              url: `/api/stream/proxy?url=${encodeURIComponent(s.url)}`,
+              label: s.lang,
+            })),
+        });
+      }
+
+      return sources;
+    } catch {
+      return [];
+    }
+  }
+}
+
+class ConsumetZoroProvider implements StreamProvider {
+  readonly name = "consumetZoro";
+
+  async getEpisodeSources(ctx: SourceContext): Promise<StreamSource[]> {
+    if (!ctx.title) return [];
+    const episode = ctx.episode ?? 1;
+
+    try {
+      const searchRes = await fetchWithTimeout(
+        `${CONSUMET_BASE}/anime/zoro/${encodeURIComponent(ctx.title)}`,
+        { headers: { "User-Agent": UA, Accept: "application/json" } },
+        8000
+      );
+      if (!searchRes.ok) return [];
+      const searchData = (await searchRes.json()) as {
+        results?: Array<{ id: string; title: string }>;
+      };
+      const first = searchData.results?.[0];
+      if (!first) return [];
+
+      const infoRes = await fetchWithTimeout(
+        `${CONSUMET_BASE}/anime/zoro/info?id=${encodeURIComponent(first.id)}`,
+        { headers: { "User-Agent": UA, Accept: "application/json" } },
+        8000
+      );
+      if (!infoRes.ok) return [];
+      const infoData = (await infoRes.json()) as {
+        episodes?: Array<{ id: string; number: number; title?: string }>;
+      };
+      const ep = infoData.episodes?.find((e) => e.number === episode);
+      if (!ep) return [];
+
+      const watchRes = await fetchWithTimeout(
+        `${CONSUMET_BASE}/anime/zoro/watch?episodeId=${encodeURIComponent(
+          ep.id
+        )}&mediaId=${encodeURIComponent(first.id)}`,
+        { headers: { "User-Agent": UA, Accept: "application/json" } },
+        8000
+      );
+      if (!watchRes.ok) return [];
+      const watchData = (await watchRes.json()) as {
+        sources?: Array<{ url: string; quality: string; isM3U8?: boolean }>;
+        subtitles?: Array<{ url: string; lang: string }>;
+      };
+
+      const sources: StreamSource[] = [];
+      for (const src of watchData.sources || []) {
+        if (!src.url) continue;
+        sources.push({
+          provider: this.name,
+          label: `Zoro ${src.quality || "Auto"}`,
+          url: src.isM3U8
+            ? `/api/stream/proxy?url=${encodeURIComponent(src.url)}`
+            : src.url,
+          intro: null,
+          outro: null,
+          subtitles: (watchData.subtitles || [])
+            .filter((s) => s.url)
+            .map((s) => ({
+              url: `/api/stream/proxy?url=${encodeURIComponent(s.url)}`,
+              label: s.lang,
+            })),
+        });
+      }
+
+      return sources;
+    } catch {
+      return [];
+    }
+  }
+}
+
 export const megaPlayProvider = new MegaPlayProvider();
 export const megaPlayBackupProvider = new MegaPlayBackupProvider();
+export const consumetGogoProvider = new ConsumetGogoProvider();
+export const consumetZoroProvider = new ConsumetZoroProvider();
 
 export class ProviderRegistry {
   private providers: StreamProvider[] = [];
@@ -243,7 +393,9 @@ export class ProviderRegistry {
 
 export const defaultProviderRegistry = new ProviderRegistry()
   .register(megaPlayProvider)
-  .register(megaPlayBackupProvider);
+  .register(megaPlayBackupProvider)
+  .register(consumetGogoProvider)
+  .register(consumetZoroProvider);
 
 export async function getEpisodeSources(
   ctx: SourceContext,

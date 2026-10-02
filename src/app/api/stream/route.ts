@@ -17,6 +17,7 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const malId = searchParams.get("malId");
   const aniListId = searchParams.get("aniListId");
+  const title = searchParams.get("title") || undefined;
   const episode = searchParams.get("episode");
   const language = (searchParams.get("lang") as "sub" | "dub") || "sub";
 
@@ -31,6 +32,7 @@ export async function GET(req: NextRequest) {
     const result = await getEpisodeSources({
       malId: malId ? Number(malId) : undefined,
       aniListId: aniListId ? Number(aniListId) : undefined,
+      title,
       episode: episode ? Number(episode) : 1,
       language,
     });

@@ -237,17 +237,18 @@ export default function WatchEpisodePage() {
 
         <div className="mx-auto grid max-w-7xl gap-4 px-4 lg:grid-cols-[1fr_320px]">
           <div className="min-w-0">
-            <HLSPlayer
-              key={`mal-${id}-${selectedEp}-${language}`}
-              malId={id}
-              episodeNumber={selectedEp}
-              language={language}
-              title={episodeLabel}
-              onNext={() => selectedEp < totalEps && handleEpisodeSelect(selectedEp + 1)}
-              onPrevious={handlePrevious}
-              hasNext={selectedEp < totalEps}
-              hasPrevious={selectedEp > 1}
-            />
+          <HLSPlayer
+            key={`mal-${id}-${selectedEp}-${language}`}
+            malId={id}
+            seriesTitle={fallback.title}
+            episodeNumber={selectedEp}
+            language={language}
+            title={episodeLabel}
+            onNext={() => selectedEp < totalEps && handleEpisodeSelect(selectedEp + 1)}
+            onPrevious={handlePrevious}
+            hasNext={selectedEp < totalEps}
+            hasPrevious={selectedEp > 1}
+          />
 
             <div className="mt-4 rounded-xl border border-border bg-surface p-4">
               <div className="flex flex-wrap items-center justify-between gap-4">
@@ -311,6 +312,7 @@ export default function WatchEpisodePage() {
             key={`${series.mal_id}-${selectedEp}-${language}`}
             malId={series.mal_id || id}
             aniListId={series.ani_id || undefined}
+            seriesTitle={series.title}
             episodeNumber={selectedEp}
             language={language}
             title={episodeLabel}

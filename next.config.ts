@@ -8,6 +8,7 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "s4.anilist.co" },
       { protocol: "https", hostname: "s3.anilist.co" },
       { protocol: "https", hostname: "cdn.anipixcdn.co" },
+      { protocol: "https", hostname: "placehold.co" },
     ],
     formats: ["image/avif", "image/webp"],
     minimumCacheTTL: 60 * 60 * 24 * 7,
