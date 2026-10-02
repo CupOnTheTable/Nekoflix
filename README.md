@@ -95,15 +95,32 @@ npm run db:push          # Push Prisma schema to database
 
 ## Deployment
 
-### Vercel
+### Vercel + Neon (recommended)
 
-1. Connect your GitHub repository to Vercel
-2. Add your environment variables in Vercel Dashboard → Settings → Environment Variables
-3. Set the build command to:
+1. Create a Neon project at [neon.tech](https://neon.tech).
+2. In Neon, copy both connection strings:
+   - **Pooled connection** → use as `DATABASE_URL`
+   - **Direct connection** → use as `DIRECT_URL`
+3. Connect your GitHub repository to Vercel.
+4. In Vercel Dashboard → Settings → Environment Variables, add:
+   - `DATABASE_URL` (pooled)
+   - `DIRECT_URL` (direct)
+   - `AUTH_SECRET` (random string)
+   - `NEXTAUTH_URL` (your Vercel domain)
+5. Set the build command to:
    ```bash
    prisma generate && prisma migrate deploy && next build
    ```
-4. Deploy
+6. Deploy.
+
+If the migration step times out on Vercel, run migrations locally instead:
+```bash
+DIRECT_URL="postgresql://..." npm run db:migrate
+```
+
+### Render
+
+Use the included `render.yaml` blueprint. Add `DIRECT_URL` as a sync-disabled environment variable in the Render dashboard (required for Prisma migrations on Neon).
 
 ## Content Licensing
 
