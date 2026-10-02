@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import {
   Play, Pause, ChevronLeft, ChevronRight, Volume2, VolumeX,
   Maximize, Minimize, Settings, AlertCircle, SkipForward, RotateCw, Server,
-  PictureInPicture2, Gauge,
+  PictureInPicture2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PLAYER } from "@/lib/i18n";
@@ -50,10 +50,6 @@ const SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 2];
 
 function isEmbedUrl(url: string): boolean {
   return /vidsrc\.|embed\.su|2embed|mega\.|youtube|streamtape|dood|filemoon/i.test(url);
-}
-
-function isVideoUrl(url: string): boolean {
-  return url.includes(".m3u8") || url.includes("/api/stream/proxy") || /\.(mp4|webm|ogg|mov)($|\?)/i.test(url);
 }
 
 export default function HLSPlayer({
@@ -211,7 +207,7 @@ export default function HLSPlayer({
       const nextIndex = sources.findIndex((s, i) => !triedSourcesRef.current.has(i) && !isEmbedUrl(s.url));
       if (nextIndex >= 0) {
         triedSourcesRef.current.add(nextIndex);
-        loadSource(nextIndex, autoPlay);
+        setTimeout(() => loadSource(nextIndex, autoPlay), 0);
       } else if (sources.some((s) => isEmbedUrl(s.url))) {
         setIframeMode(true);
       } else {

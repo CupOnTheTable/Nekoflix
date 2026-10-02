@@ -40,6 +40,12 @@ export default function MegaPlayer({
   const [duration, setDuration] = useState("0:00");
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
+  const formatTime = useCallback((secs: number) => {
+    const m = Math.floor(secs / 60);
+    const s = Math.floor(secs % 60);
+    return `${m}:${s.toString().padStart(2, "0")}`;
+  }, []);
+
   useEffect(() => {
     setLoading(true);
     setError(false);
@@ -70,13 +76,7 @@ export default function MegaPlayer({
 
     window.addEventListener("message", handler);
     return () => window.removeEventListener("message", handler);
-  }, []);
-
-  const formatTime = (secs: number) => {
-    const m = Math.floor(secs / 60);
-    const s = Math.floor(secs % 60);
-    return `${m}:${s.toString().padStart(2, "0")}`;
-  };
+  }, [formatTime]);
 
   const handleLoad = useCallback(() => setLoading(false), []);
 
