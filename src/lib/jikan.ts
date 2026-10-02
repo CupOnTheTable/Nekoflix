@@ -60,6 +60,7 @@ interface AniListSingleResponse {
 }
 
 const memCache = new Map<string, { data: unknown; expiry: number }>();
+const inflight = new Map<string, Promise<unknown>>();
 const MEM_TTL = 5 * 60 * 1000;
 const DB_TTL = 60 * 60 * 1000;
 
@@ -97,39 +98,52 @@ async function anilistQuery<T>(query: string, variables: Record<string, unknown>
   const cached = await getCached<T>(cacheKey);
   if (cached) return cached;
 
-  for (let attempt = 0; attempt < 3; attempt++) {
-    try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 10000);
-      const res = await fetch(ANILIST_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify({ query, variables: cleanVars }),
-        signal: controller.signal,
-      });
-      clearTimeout(timeout);
+  const existing = inflight.get(cacheKey);
+  if (existing) return existing as Promise<T>;
 
-      if (res.status === 429) {
-        await new Promise((r) => setTimeout(r, 1500 * (attempt + 1)));
-        continue;
-      }
-      if (!res.ok) {
-        const errBody = await res.text();
-        throw new Error(`AniList ${res.status}: ${errBody}`);
-      }
+  const promise = (async (): Promise<T> => {
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 10000);
+        const res = await fetch(ANILIST_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Accept: "application/json" },
+          body: JSON.stringify({ query, variables: cleanVars }),
+          signal: controller.signal,
+        });
+        clearTimeout(timeout);
 
-      const json = await res.json();
-      await setCached(cacheKey, json);
-      return json;
-    } catch (err: unknown) {
-      if (err instanceof DOMException && err.name === "AbortError") {
-        if (attempt < 2) { await new Promise((r) => setTimeout(r, 1000)); continue; }
+        if (res.status === 429) {
+          await new Promise((r) => setTimeout(r, 1500 * (attempt + 1)));
+          continue;
+        }
+        if (!res.ok) {
+          const errBody = await res.text();
+          throw new Error(`AniList ${res.status}: ${errBody}`);
+        }
+
+        const json = await res.json();
+        await setCached(cacheKey, json);
+        return json;
+      } catch (err: unknown) {
+        if (err instanceof DOMException && err.name === "AbortError") {
+          if (attempt < 2) { await new Promise((r) => setTimeout(r, 1000)); continue; }
+        }
+        if (attempt === 2) throw err;
+        await new Promise((r) => setTimeout(r, 1000));
       }
-      if (attempt === 2) throw err;
-      await new Promise((r) => setTimeout(r, 1000));
     }
+    throw new Error("AniList API failed");
+  })();
+
+  inflight.set(cacheKey, promise);
+  try {
+    const result = await promise;
+    return result;
+  } finally {
+    inflight.delete(cacheKey);
   }
-  throw new Error("AniList API failed");
 }
 
 function mapAnilistToAnime(m: AniListMedia): Anime {

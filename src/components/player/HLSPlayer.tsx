@@ -3,9 +3,10 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import {
   Play, Pause, ChevronLeft, ChevronRight, Volume2, VolumeX,
-  Maximize, Minimize, Settings, AlertCircle, SkipForward,
+  Maximize, Minimize, Settings, AlertCircle, SkipForward, RotateCw, Server,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { PLAYER } from "@/lib/i18n";
 
 interface Subtitle {
   url: string;
@@ -13,12 +14,20 @@ interface Subtitle {
   default?: boolean;
 }
 
+interface StreamSource {
+  provider: string;
+  label: string;
+  url: string;
+  intro: { start: number; end: number } | null;
+  outro: { start: number; end: number } | null;
+  subtitles: Subtitle[];
+}
+
 interface HLSPlayerProps {
-  embedId: string | null;
-  directUrl?: string | null;
+  malId?: string | null;
+  aniListId?: string | null;
   language?: "sub" | "dub";
   title?: string;
-  malId?: string | null;
   episodeNumber?: number;
   onNext?: () => void;
   onPrevious?: () => void;
@@ -28,11 +37,10 @@ interface HLSPlayerProps {
 }
 
 export default function HLSPlayer({
-  embedId,
-  directUrl,
+  malId,
+  aniListId,
   language = "sub",
   title,
-  malId,
   episodeNumber,
   onNext,
   onPrevious,
@@ -46,6 +54,8 @@ export default function HLSPlayer({
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [sources, setSources] = useState<StreamSource[]>([]);
+  const [activeSourceIndex, setActiveSourceIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [currentTime, setCurrentTime] = useState("0:00");
@@ -68,149 +78,192 @@ export default function HLSPlayer({
     return `${m}:${s.toString().padStart(2, "0")}`;
   };
 
-  const loadStream = useCallback(async () => {
+  const clearTracks = useCallback(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    while (video.querySelector("track")) {
+      const t = video.querySelector("track");
+      if (t) t.remove();
+    }
+  }, []);
+
+  const loadSource = useCallback(async (sourceIndex: number, autoPlay = true) => {
+    const video = videoRef.current;
+    if (!video) return;
+
     setLoading(true);
     setError(null);
     setShowSkipIntro(false);
     setShowSkipOutro(false);
     introEndRef.current = 0;
     outroStartRef.current = 0;
+    clearTracks();
+
+    const source = sources[sourceIndex];
+    if (!source) {
+      setError(PLAYER.sourceError);
+      setLoading(false);
+      return;
+    }
+
+    setActiveSourceIndex(sourceIndex);
+    setSubtitles(source.subtitles || []);
+
+    const iS = source.intro?.start ?? 0;
+    const iE = source.intro?.end ?? 0;
+    const oS = source.outro?.start ?? 0;
+    const oE = source.outro?.end ?? 0;
+
+    if (iS >= 0 && iE > iS) introEndRef.current = iE;
+    if (oS >= 0 && oE > oS) outroStartRef.current = oS;
+
+    if (malId && episodeNumber) {
+      try {
+        const skipRes = await fetch(
+          `/api/skip-times?malId=${malId}&ep=${episodeNumber}&duration=1400`
+        );
+        const skipData = await skipRes.json();
+        if (skipData.ok) {
+          if (skipData.intro && skipData.intro.end > 0) {
+            introEndRef.current = skipData.intro.end;
+          }
+          if (skipData.outro && skipData.outro.start > 0) {
+            outroStartRef.current = skipData.outro.start;
+          }
+        }
+      } catch {
+        // skip times unavailable
+      }
+    }
+
+    if (hlsRef.current) {
+      (hlsRef.current as { destroy: () => void }).destroy();
+      hlsRef.current = null;
+    }
 
     try {
-      let url: string;
-      if (directUrl) {
-        url = `/api/stream?url=${encodeURIComponent(directUrl)}`;
-      } else if (embedId) {
-        url = `/api/stream?embedId=${embedId}&lang=${language}`;
-      } else if (malId) {
-        url = `/api/stream?malId=${malId}&episode=${episodeNumber || 1}&lang=${language}`;
-      } else {
-        setError("No stream source available");
-        setLoading(false);
-        return;
-      }
-      const res = await fetch(url);
-      const data = await res.json();
-
-      if (!data.ok || !data.stream?.url) {
-        setError(data.error || "Stream not available");
-        setLoading(false);
-        return;
-      }
-
-      setSubtitles(data.subtitles || []);
-
-      const iS = data.stream.intro?.start ?? 0;
-      const iE = data.stream.intro?.end ?? 0;
-      const oS = data.stream.outro?.start ?? 0;
-      const oE = data.stream.outro?.end ?? 0;
-
-      if (iS > 0 && iE > iS) introEndRef.current = iE;
-      if (oS > 0 && oE > oS) outroStartRef.current = oS;
-
-      if (malId && episodeNumber) {
-        try {
-          const skipRes = await fetch(
-            `/api/skip-times?malId=${malId}&ep=${episodeNumber}&duration=1400`
-          );
-          const skipData = await skipRes.json();
-          if (skipData.ok) {
-            if (skipData.intro && skipData.intro.end > 0) {
-              introEndRef.current = skipData.intro.end;
-            }
-            if (skipData.outro && skipData.outro.start > 0) {
-              outroStartRef.current = skipData.outro.start;
-            }
-          }
-        } catch {
-          // skip times unavailable, use fallback
-        }
-      }
-
-      if (introEndRef.current > 0) {
-        setShowSkipIntro(true);
-      }
-
-      if (outroStartRef.current > 0) {
-        setShowSkipOutro(true);
-      }
-
-      const video = videoRef.current;
-      if (!video) {
-        setLoading(false);
-        return;
-      }
-
-      if (hlsRef.current) {
-        (hlsRef.current as { destroy: () => void }).destroy();
-        hlsRef.current = null;
-      }
-
       const Hls = (await import("hls.js")).default;
-      const hls = new Hls({
-        enableWorker: true,
-        maxBufferLength: 30,
-        maxMaxBufferLength: 60,
-      });
-      hlsRef.current = hls;
+      if (Hls.isSupported()) {
+        const hls = new Hls({
+          enableWorker: true,
+          maxBufferLength: 30,
+          maxMaxBufferLength: 60,
+        });
+        hlsRef.current = hls;
 
-      hls.loadSource(data.stream.url);
-      hls.attachMedia(video);
+        hls.loadSource(source.url);
+        hls.attachMedia(video);
 
-      hls.on(Hls.Events.MANIFEST_PARSED, () => {
-        setLoading(false);
-        video.play().catch(() => {});
-
-        if (data.subtitles.length > 0) {
-          (async () => {
-            for (const sub of data.subtitles) {
-              try {
-                const subRes = await fetch(sub.url);
-                const vtt = await subRes.text();
-                const blob = new Blob([vtt], { type: "text/vtt" });
-                const blobUrl = URL.createObjectURL(blob);
-                const trackEl = document.createElement("track");
-                trackEl.kind = "subtitles";
-                trackEl.label = sub.label;
-                trackEl.srclang = sub.label.split(" ")[0].toLowerCase().slice(0, 2);
-                trackEl.src = blobUrl;
-                if (sub.default) trackEl.default = true;
-                video.appendChild(trackEl);
-              } catch {
-                // skip
-              }
-            }
-            if (video.textTracks.length > 0) {
-              const defaultIdx = data.subtitles.findIndex((s: Subtitle) => s.default);
-              for (let t = 0; t < video.textTracks.length; t++) {
-                video.textTracks[t].mode = (defaultIdx >= 0 && t === defaultIdx) ? "showing" : "hidden";
-                if (defaultIdx >= 0 && t === defaultIdx) setActiveTrack(t);
-              }
-            }
-          })();
-        }
-      });
-
-      hls.on(Hls.Events.ERROR, (_: unknown, d: { fatal: boolean }) => {
-        if (d.fatal) {
-          setError("Stream could not be loaded");
+        hls.on(Hls.Events.MANIFEST_PARSED, () => {
           setLoading(false);
-        }
-      });
+          if (autoPlay) video.play().catch(() => {});
+          setupSubtitles(source.subtitles);
+        });
+
+        hls.on(Hls.Events.ERROR, (_: unknown, d: { fatal: boolean; type?: string }) => {
+          if (d.fatal) {
+            setError(PLAYER.sourceError);
+            setLoading(false);
+          }
+        });
+      } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
+        video.src = source.url;
+        video.addEventListener("loadedmetadata", () => {
+          setLoading(false);
+          if (autoPlay) video.play().catch(() => {});
+          setupSubtitles(source.subtitles);
+        }, { once: true });
+      } else {
+        setError(PLAYER.sourceError);
+        setLoading(false);
+      }
     } catch {
-      setError("Stream could not be loaded");
+      setError(PLAYER.sourceError);
       setLoading(false);
     }
-  }, [embedId, directUrl, language, malId, episodeNumber]);
+  }, [sources, malId, episodeNumber, clearTracks]);
+
+  const setupSubtitles = useCallback((subs: Subtitle[]) => {
+    const video = videoRef.current;
+    if (!video || subs.length === 0) return;
+
+    (async () => {
+      for (const sub of subs) {
+        try {
+          const subRes = await fetch(sub.url);
+          const vtt = await subRes.text();
+          const blob = new Blob([vtt], { type: "text/vtt" });
+          const blobUrl = URL.createObjectURL(blob);
+          const trackEl = document.createElement("track");
+          trackEl.kind = "subtitles";
+          trackEl.label = sub.label;
+          trackEl.srclang = sub.label.split(" ")[0].toLowerCase().slice(0, 2);
+          trackEl.src = blobUrl;
+          if (sub.default) trackEl.default = true;
+          video.appendChild(trackEl);
+        } catch {
+          // skip broken subtitle
+        }
+      }
+      if (video.textTracks.length > 0) {
+        const defaultIdx = subs.findIndex((s) => s.default);
+        for (let t = 0; t < video.textTracks.length; t++) {
+          video.textTracks[t].mode = (defaultIdx >= 0 && t === defaultIdx) ? "showing" : "hidden";
+          if (defaultIdx >= 0 && t === defaultIdx) setActiveTrack(t);
+        }
+      }
+    })();
+  }, []);
+
+  const resolveSources = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+
+    if (!malId && !aniListId) {
+      setError("No stream source available");
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const params = new URLSearchParams();
+      if (malId) params.set("malId", malId);
+      if (aniListId) params.set("aniListId", aniListId);
+      params.set("episode", String(episodeNumber || 1));
+      params.set("lang", language);
+
+      const res = await fetch(`/api/stream?${params.toString()}`);
+      const data = await res.json();
+
+      if (!data.ok || !data.sources?.length) {
+        setError(data.error || PLAYER.sourceError);
+        setLoading(false);
+        return;
+      }
+
+      setSources(data.sources);
+      setActiveSourceIndex(0);
+      // loadSource will be triggered by useEffect when sources change
+    } catch {
+      setError(PLAYER.sourceError);
+      setLoading(false);
+    }
+  }, [malId, aniListId, episodeNumber, language]);
 
   useEffect(() => {
-    loadStream();
+    resolveSources();
+  }, [resolveSources]);
+
+  useEffect(() => {
+    if (sources.length > 0) {
+      loadSource(0, true);
+    }
     return () => {
       if (hlsRef.current) {
         (hlsRef.current as { destroy: () => void }).destroy();
       }
     };
-  }, [loadStream]);
+  }, [sources, loadSource]);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -225,11 +278,15 @@ export default function HLSPlayer({
       setDuration(formatTime(video.duration));
 
       const ct = video.currentTime;
-      if (introEndRef.current > 0 && ct > introEndRef.current) {
+      if (introEndRef.current > 0 && ct < introEndRef.current) {
+        setShowSkipIntro(true);
+      } else {
         setShowSkipIntro(false);
       }
       if (outroStartRef.current > 0 && ct >= outroStartRef.current) {
         setShowSkipOutro(true);
+      } else {
+        setShowSkipOutro(false);
       }
     };
 
@@ -251,11 +308,13 @@ export default function HLSPlayer({
 
       switch (e.key) {
         case "ArrowLeft":
+        case "j":
           e.preventDefault();
           video.currentTime = Math.max(0, video.currentTime - 10);
           setShowControls(true);
           break;
         case "ArrowRight":
+        case "l":
           e.preventDefault();
           video.currentTime = Math.min(video.duration || 0, video.currentTime + 10);
           setShowControls(true);
@@ -274,12 +333,16 @@ export default function HLSPlayer({
           video.muted = !video.muted;
           setIsMuted(video.muted);
           break;
+        case "n":
+          e.preventDefault();
+          if (hasNext) onNext?.();
+          break;
       }
     };
 
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, []);
+  }, [hasNext, onNext]);
 
   const togglePlay = () => {
     const v = videoRef.current;
@@ -352,14 +415,41 @@ export default function HLSPlayer({
     setShowSettings(false);
   };
 
+  const tryNextSource = () => {
+    if (activeSourceIndex < sources.length - 1) {
+      loadSource(activeSourceIndex + 1, true);
+    } else {
+      setError(PLAYER.sourceError);
+    }
+  };
+
   if (error) {
     return (
       <div className={cn("relative flex flex-col items-center justify-center rounded-xl bg-zinc-900 aspect-video", className)}>
         <AlertCircle className="h-12 w-12 text-red-500 mb-3" />
         <p className="text-sm text-zinc-400 mb-2">{error}</p>
+        <p className="text-xs text-zinc-500 mb-4">{PLAYER.sourceErrorDescription}</p>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => resolveSources()}
+            className="flex items-center gap-2 rounded-lg bg-zinc-700 px-4 py-2 text-sm text-white hover:bg-zinc-600"
+          >
+            <RotateCw className="h-4 w-4" />
+            {PLAYER.retry}
+          </button>
+          {sources.length > 1 && activeSourceIndex < sources.length - 1 && (
+            <button
+              onClick={tryNextSource}
+              className="flex items-center gap-2 rounded-lg bg-purple-600 px-4 py-2 text-sm text-white hover:bg-purple-500"
+            >
+              <Server className="h-4 w-4" />
+              {PLAYER.tryAnotherServer}
+            </button>
+          )}
+        </div>
         {hasNext && (
-          <button onClick={onNext} className="flex items-center gap-2 rounded-lg bg-purple-600 px-4 py-2 text-sm text-white hover:bg-purple-500 mt-3">
-            Next Episode <ChevronRight className="h-4 w-4" />
+          <button onClick={onNext} className="flex items-center gap-2 rounded-lg bg-zinc-700 px-4 py-2 text-sm text-white hover:bg-zinc-600 mt-3">
+            {PLAYER.nextEpisode} <ChevronRight className="h-4 w-4" />
           </button>
         )}
       </div>
@@ -380,7 +470,7 @@ export default function HLSPlayer({
               <div className="absolute inset-0 animate-spin rounded-full border-4 border-transparent border-t-purple-500 border-r-pink-500" style={{ animationDuration: "1.2s" }} />
               <div className="absolute inset-2 animate-spin rounded-full border-4 border-transparent border-b-cyan-400" style={{ animationDuration: "1.8s", animationDirection: "reverse" }} />
             </div>
-            <p className="text-xs text-zinc-500">Loading stream...</p>
+            <p className="text-xs text-zinc-500">{PLAYER.sourceErrorDescription.includes("load") ? "Loading stream..." : "Loading stream..."}</p>
           </div>
         </div>
       )}
@@ -398,7 +488,7 @@ export default function HLSPlayer({
           className="absolute bottom-24 right-4 z-30 flex items-center gap-2 rounded-lg border border-white/20 bg-black/60 px-5 py-2.5 text-sm font-medium text-white backdrop-blur-sm transition-all hover:bg-white/20"
         >
           <SkipForward className="h-4 w-4" />
-          Skip Intro
+          {PLAYER.skipIntro}
         </button>
       )}
 
@@ -408,7 +498,7 @@ export default function HLSPlayer({
           className="absolute bottom-24 right-4 z-30 flex items-center gap-2 rounded-lg border border-white/20 bg-black/60 px-5 py-2.5 text-sm font-medium text-white backdrop-blur-sm transition-all hover:bg-white/20"
         >
           <SkipForward className="h-4 w-4" />
-          {hasNext ? "Next Episode" : "Skip Outro"}
+          {hasNext ? PLAYER.nextEpisode : PLAYER.skipOutro}
         </button>
       )}
 
@@ -447,7 +537,7 @@ export default function HLSPlayer({
             </div>
 
             <div className="flex items-center gap-1 relative">
-              {subtitles.length > 0 && (
+              {(subtitles.length > 0 || sources.length > 1) && (
                 <div className="relative">
                   <button
                     onClick={() => setShowSettings(!showSettings)}
@@ -456,29 +546,50 @@ export default function HLSPlayer({
                     <Settings className="h-5 w-5" />
                   </button>
                   {showSettings && (
-                    <div className="absolute bottom-full right-0 mb-2 rounded-lg border border-zinc-700 bg-zinc-800 p-2 shadow-xl min-w-[150px]">
-                      <p className="text-[10px] text-zinc-500 mb-1 px-2">Subtitles</p>
-                      <button
-                        onClick={() => setTrack(-1)}
-                        className={cn(
-                          "w-full rounded px-2 py-1 text-left text-xs transition-colors",
-                          activeTrack === -1 ? "bg-purple-600 text-white" : "text-zinc-300 hover:bg-zinc-700"
-                        )}
-                      >
-                        Off
-                      </button>
-                      {subtitles.map((sub, i) => (
-                        <button
-                          key={i}
-                          onClick={() => setTrack(i)}
-                          className={cn(
-                            "w-full rounded px-2 py-1 text-left text-xs transition-colors",
-                            activeTrack === i ? "bg-purple-600 text-white" : "text-zinc-300 hover:bg-zinc-700"
-                          )}
-                        >
-                          {sub.label}
-                        </button>
-                      ))}
+                    <div className="absolute bottom-full right-0 mb-2 rounded-lg border border-zinc-700 bg-zinc-800 p-2 shadow-xl min-w-[180px]">
+                      {sources.length > 1 && (
+                        <>
+                          <p className="text-[10px] text-zinc-500 mb-1 px-2">{PLAYER.quality}</p>
+                          {sources.map((src, i) => (
+                            <button
+                              key={i}
+                              onClick={() => { loadSource(i, true); setShowSettings(false); }}
+                              className={cn(
+                                "w-full rounded px-2 py-1 text-left text-xs transition-colors",
+                                activeSourceIndex === i ? "bg-purple-600 text-white" : "text-zinc-300 hover:bg-zinc-700"
+                              )}
+                            >
+                              {src.label}
+                            </button>
+                          ))}
+                        </>
+                      )}
+                      {subtitles.length > 0 && (
+                        <>
+                          <p className="text-[10px] text-zinc-500 mb-1 px-2 mt-2">{PLAYER.subtitles}</p>
+                          <button
+                            onClick={() => setTrack(-1)}
+                            className={cn(
+                              "w-full rounded px-2 py-1 text-left text-xs transition-colors",
+                              activeTrack === -1 ? "bg-purple-600 text-white" : "text-zinc-300 hover:bg-zinc-700"
+                            )}
+                          >
+                            {PLAYER.off}
+                          </button>
+                          {subtitles.map((sub, i) => (
+                            <button
+                              key={i}
+                              onClick={() => setTrack(i)}
+                              className={cn(
+                                "w-full rounded px-2 py-1 text-left text-xs transition-colors",
+                                activeTrack === i ? "bg-purple-600 text-white" : "text-zinc-300 hover:bg-zinc-700"
+                              )}
+                            >
+                              {sub.label}
+                            </button>
+                          ))}
+                        </>
+                      )}
                     </div>
                   )}
                 </div>

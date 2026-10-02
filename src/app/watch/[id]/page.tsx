@@ -94,11 +94,6 @@ export default function WatchPage() {
   }, [id]);
 
   const currentEpisode = series?.episodes?.find((ep) => ep.number === selectedEp);
-  const embedId = currentEpisode?.episode_embed_id?.toString();
-  const embedUrl = language === "dub"
-    ? currentEpisode?.embed_url?.dub
-    : currentEpisode?.embed_url?.sub;
-  const embedUrlFallback = currentEpisode?.embed_url?.sub || currentEpisode?.embed_url?.dub;
 
   const handleNext = useCallback(() => {
     if (series && selectedEp < series.episodes.length) {
@@ -162,7 +157,6 @@ export default function WatchPage() {
 
           <HLSPlayer
             key={`mal-${malIdStr}-${selectedEp}-${language}`}
-            embedId={null}
             malId={malIdStr}
             episodeNumber={selectedEp}
             language={language}
@@ -233,24 +227,20 @@ export default function WatchPage() {
           </button>
         </div>
 
-        {embedId && (
-          <div className="px-4">
-            <HLSPlayer
-              key={`${embedUrl || embedId}-${language}`}
-              embedId={embedId}
-              directUrl={embedUrl || embedUrlFallback || null}
-              language={language}
-              title={episodeLabel}
-              malId={series.mal_id || fallback?.id?.toString() || null}
-              episodeNumber={selectedEp}
-              onNext={handleNext}
-              onPrevious={handlePrevious}
-              hasNext={selectedEp < series.episodes.length}
-              hasPrevious={selectedEp > 1}
-              className="mx-auto max-w-5xl"
-            />
-          </div>
-        )}
+        <div className="px-4">
+          <HLSPlayer
+            key={`${series.mal_id}-${selectedEp}-${language}`}
+            malId={series.mal_id || fallback?.id?.toString() || null}
+            episodeNumber={selectedEp}
+            language={language}
+            title={episodeLabel}
+            onNext={handleNext}
+            onPrevious={handlePrevious}
+            hasNext={selectedEp < series.episodes.length}
+            hasPrevious={selectedEp > 1}
+            className="mx-auto max-w-5xl"
+          />
+        </div>
 
         <div className="p-4">
           <div className="mx-auto max-w-5xl">
