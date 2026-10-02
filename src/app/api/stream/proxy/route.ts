@@ -4,12 +4,52 @@ const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,
 
 export const dynamic = "force-dynamic";
 
+// MegaPlay strips the first 252 bytes of segments from these CDNs
+const STRIP_HOSTS = /ibyteimg\.com|tiktokcdn\.com|ipstatp\.com|yoot\.akirax\.buzz/i;
+const STRIP_BYTES = 252;
+
 function toAbsoluteUrl(relativeOrAbsolute: string, base: string): string {
   const trimmed = relativeOrAbsolute.trim();
   if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
     return trimmed;
   }
   return base + trimmed;
+}
+
+function shouldStripSegments(url: string): boolean {
+  try {
+    const host = new URL(url).hostname.toLowerCase();
+    return STRIP_HOSTS.test(host);
+  } catch {
+    return false;
+  }
+}
+
+function getProxyHeaders(targetUrl: string): Record<string, string> {
+  try {
+    const host = new URL(targetUrl).hostname.toLowerCase();
+    if (host.includes("megaplay") || host.includes("nexabloom") || host.includes("ivorysummit") || host.includes("akirax")) {
+      return {
+        "User-Agent": UA,
+        "Accept": "*/*",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Referer": "https://megaplay.buzz/",
+        "Origin": "https://megaplay.buzz",
+        "Sec-Fetch-Dest": "empty",
+        "Sec-Fetch-Mode": "cors",
+        "Sec-Fetch-Site": "cross-site",
+      };
+    }
+  } catch {
+    // fall through
+  }
+  return {
+    "User-Agent": UA,
+    "Accept": "*/*",
+    "Accept-Language": "en-US,en;q=0.9",
+    "Referer": targetUrl,
+    "Origin": "*",
+  };
 }
 
 function rewriteM3u8(content: string, originalUrl: string, proxyBase: string): string {
@@ -44,18 +84,7 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const res = await fetch(targetUrl, {
-      headers: {
-        "User-Agent": UA,
-        "Accept": "*/*",
-        "Accept-Language": "en-US,en;q=0.9",
-        "Referer": "https://megaplay.buzz/",
-        "Origin": "https://megaplay.buzz",
-        "Sec-Fetch-Dest": "empty",
-        "Sec-Fetch-Mode": "cors",
-        "Sec-Fetch-Site": "cross-site",
-      },
-    });
+    const res = await fetch(targetUrl, { headers: getProxyHeaders(targetUrl) });
 
     if (!res.ok) {
       return new Response(`Upstream ${res.status}`, { status: res.status });
@@ -91,7 +120,13 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    const body = await res.arrayBuffer();
+    let body = await res.arrayBuffer();
+
+    // MegaPlay strips the first 252 bytes from segments hosted on certain CDNs
+    if (shouldStripSegments(targetUrl) && body.byteLength > STRIP_BYTES) {
+      body = body.slice(STRIP_BYTES);
+    }
+
     const headers: Record<string, string> = {
       "Content-Type": contentType,
       "Access-Control-Allow-Origin": "*",
@@ -99,7 +134,7 @@ export async function GET(req: NextRequest) {
     };
 
     const contentLength = res.headers.get("content-length");
-    if (contentLength) headers["Content-Length"] = contentLength;
+    if (contentLength) headers["Content-Length"] = String(body.byteLength);
 
     return new Response(body, { status: 200, headers });
   } catch (err: unknown) {
