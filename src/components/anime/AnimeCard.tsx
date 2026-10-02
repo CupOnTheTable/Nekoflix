@@ -1,10 +1,14 @@
 "use client";
 
-import { memo } from "react";
+import { memo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Star } from "lucide-react";
 import type { Anime } from "@/types";
+
+function placeholderCover(title: string): string {
+  return `https://placehold.co/400x600/18181b/71717a?text=${encodeURIComponent(title || "Anime")}`;
+}
 
 interface AnimeCardProps {
   anime: Anime;
@@ -12,6 +16,7 @@ interface AnimeCardProps {
 
 function AnimeCard({ anime }: AnimeCardProps) {
   const genres = anime.genres.slice(0, 3);
+  const [src, setSrc] = useState(anime.coverImage || placeholderCover(anime.title));
 
   return (
     <Link
@@ -19,12 +24,14 @@ function AnimeCard({ anime }: AnimeCardProps) {
       className="group relative flex flex-col rounded-xl overflow-hidden bg-surface border border-border aspect-[3/4]"
     >
       <Image
-        src={anime.coverImage}
+        src={src}
         alt={anime.title}
         fill
         sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 16vw"
         loading="lazy"
         className="object-cover"
+        onError={() => setSrc(placeholderCover(anime.title))}
+        unoptimized={src.startsWith("https://placehold.co")}
       />
 
       <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent" />

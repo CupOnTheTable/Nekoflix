@@ -30,34 +30,82 @@ function formatDayLabel(dayIndex: number): string {
   return `${month} ${date.getDate()}`;
 }
 
-function airingToLocalDay(airingAt: number): string {
-  const d = new Date(airingAt * 1000).getDay();
-  return WEEKDAY_FULL[(d + 6) % 7];
+function getTimezoneOffsetMs(timezone: string, date: Date): number {
+  const utcString = date.toLocaleString("en-US", { timeZone: "UTC" });
+  const tzString = date.toLocaleString("en-US", { timeZone: timezone });
+  const utcDate = new Date(utcString);
+  const tzDate = new Date(tzString);
+  return utcDate.getTime() - tzDate.getTime();
 }
 
-function airingToLocalTime(airingAt: number): string {
-  const d = new Date(airingAt * 1000);
-  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+function getBroadcastTimestamp(dayName: string, time: string, timezone?: string): number | null {
+  const tz = timezone || "Asia/Tokyo";
+  const now = new Date();
+  const targetDayIndex = WEEKDAY_FULL.indexOf(dayName);
+  if (targetDayIndex === -1) return null;
+
+  const currentDayIndex = now.getDay();
+  let daysUntil = targetDayIndex - currentDayIndex;
+  if (daysUntil < 0) daysUntil += 7;
+
+  const targetLocal = new Date(now);
+  targetLocal.setDate(now.getDate() + daysUntil);
+  targetLocal.setHours(0, 0, 0, 0);
+
+  const [hours, minutes] = time.split(":").map(Number);
+  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return null;
+
+  const fmt = new Intl.DateTimeFormat("en-US", {
+    timeZone: tz,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  });
+  const parts = fmt.formatToParts(targetLocal);
+  const getPart = (type: string) => parts.find((p) => p.type === type)?.value;
+  const year = getPart("year");
+  const month = getPart("month");
+  const day = getPart("day");
+  if (!year || !month || !day) return null;
+
+  const naiveUtc = Date.UTC(Number(year), Number(month) - 1, Number(day), hours, minutes);
+  const offsetMs = getTimezoneOffsetMs(tz, new Date(naiveUtc));
+  return Math.round((naiveUtc + offsetMs) / 1000);
 }
 
-function buildScheduleEntry(anime: Anime): ScheduleEntry | null {
-  const day = anime.airingAt
-    ? airingToLocalDay(anime.airingAt)
-    : anime.broadcastDay || null;
+function buildScheduleEntry(anime: Anime, selectedDayName: string): ScheduleEntry | null {
+  const day = anime.broadcastDay || null;
   if (!day) return null;
 
-  const time = anime.airingAt
-    ? airingToLocalTime(anime.airingAt)
-    : anime.broadcastTime || null;
+  const time = anime.broadcastTime || "00:00";
+
+  // Compute the timestamp for the current week's occurrence of the broadcast
+  let airingAt = anime.airingAt || null;
+  const computedAiringAt = getBroadcastTimestamp(day, time, anime.broadcastTimezone);
+
+  if (computedAiringAt) {
+    // Prefer computed broadcast time unless airingAt is within the next 24h
+    // (helps with special/delayed episodes that AniList knows about)
+    const now = Date.now() / 1000;
+    if (!airingAt || airingAt < now - 24 * 3600 || airingAt > now + 7 * 24 * 3600) {
+      airingAt = computedAiringAt;
+    }
+  }
+
+  if (!airingAt) return null;
 
   return {
     id: anime.id,
     title: anime.title,
     coverImage: anime.coverImage,
     episodeNumber: anime.episodeCount,
-    broadcastTime: time || "00:00",
+    broadcastTime: time,
     broadcastDay: day,
-    airingAt: anime.airingAt || 0,
+    airingAt,
   };
 }
 
@@ -72,11 +120,11 @@ function groupByHour(entries: ScheduleEntry[]): HourGroup[] {
   const untimed: ScheduleEntry[] = [];
 
   for (const entry of entries) {
-    if (!entry.airingAt) {
+    const h = parseInt(entry.broadcastTime.split(":")[0], 10);
+    if (!Number.isFinite(h)) {
       untimed.push(entry);
       continue;
     }
-    const h = parseInt(entry.broadcastTime.split(":")[0], 10);
     if (!timed.has(h)) timed.set(h, []);
     timed.get(h)!.push(entry);
   }
@@ -129,13 +177,9 @@ export default function SchedulePage() {
 
   const sortedByTime = useMemo(() => {
     return allAnime
-      .map(buildScheduleEntry)
+      .map((a) => buildScheduleEntry(a, selectedDayName))
       .filter((e): e is ScheduleEntry => e !== null && e.broadcastDay === selectedDayName)
-      .sort((a, b) => {
-        const mA = a.airingAt ? parseBroadcastMinutes(a.broadcastTime) : 9999;
-        const mB = b.airingAt ? parseBroadcastMinutes(b.broadcastTime) : 9999;
-        return mA - mB;
-      });
+      .sort((a, b) => parseBroadcastMinutes(a.broadcastTime) - parseBroadcastMinutes(b.broadcastTime));
   }, [allAnime, selectedDayName]);
 
   const hourGroups = useMemo(() => groupByHour(sortedByTime), [sortedByTime]);

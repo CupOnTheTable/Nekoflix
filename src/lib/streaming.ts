@@ -5,9 +5,16 @@ import {
   getMegaPlayUrlByMal,
   getSeries,
 } from "./anikoto";
+import { createDecipheriv } from "crypto";
 
 const CONSUMET_BASE =
   process.env.CONSUMET_API_URL || "https://api.consumet.org";
+
+const AMVSTRM_BASE =
+  process.env.AMVSTRM_API_URL || "https://api.amvstr.me";
+
+const MEGAPLAY_AES_KEY = "i?LMTAx0Q6,:}50U";
+const MEGAPLAY_AES_IV = "W0;27ToaUpl_P%'c";
 
 export interface StreamSource {
   provider: string;
@@ -39,6 +46,35 @@ export interface StreamProvider {
 
 const UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
+
+function padBuffer(str: string, len: number): Buffer {
+  const buf = Buffer.alloc(len);
+  const encoded = Buffer.from(str, "utf8");
+  encoded.copy(buf, 0, 0, Math.min(len, encoded.length));
+  return buf;
+}
+
+function decryptMegaPlaySource(encrypted: string): string | null {
+  try {
+    const base64 = encrypted.replace(/-/g, "+").replace(/_/g, "/");
+    const pad = base64.length % 4;
+    const padded = pad ? base64 + "=".repeat(4 - pad) : base64;
+    const encryptedBuf = Buffer.from(padded, "base64");
+    const decipher = createDecipheriv(
+      "aes-256-cbc",
+      padBuffer(MEGAPLAY_AES_KEY, 32),
+      padBuffer(MEGAPLAY_AES_IV, 16)
+    );
+    const decrypted = Buffer.concat([
+      decipher.update(encryptedBuf),
+      decipher.final(),
+    ]);
+    const parsed = JSON.parse(decrypted.toString("utf8"));
+    return parsed.file || parsed.url || null;
+  } catch {
+    return null;
+  }
+}
 
 async function fetchWithTimeout(
   url: string,
@@ -116,7 +152,7 @@ class MegaPlayProvider implements StreamProvider {
     const dataId = dataIdMatch[1];
 
     const sourceRes = await fetchWithTimeout(
-      `https://megaplay.buzz/stream/getSources?id=${dataId}`,
+      `https://megaplay.buzz/stream/getSourcesNew?id=${dataId}`,
       {
         headers: {
           "User-Agent": UA,
@@ -129,7 +165,14 @@ class MegaPlayProvider implements StreamProvider {
     if (!sourceRes.ok) return null;
 
     const sourceData = await sourceRes.json();
-    const streamUrl = sourceData.sources?.file;
+    let streamUrl = sourceData.sources?.file;
+
+    if (!streamUrl && sourceData.enc) {
+      streamUrl = decryptMegaPlaySource(sourceData.enc);
+    }
+    if (!streamUrl && sourceData.p) {
+      streamUrl = decryptMegaPlaySource(sourceData.p);
+    }
     if (!streamUrl) return null;
 
     return {
@@ -176,7 +219,7 @@ class MegaPlayBackupProvider implements StreamProvider {
         if (!dataIdMatch) continue;
 
         const sourceRes = await fetchWithTimeout(
-          `https://megaplay.buzz/stream/getSources?id=${dataIdMatch[1]}`,
+          `https://megaplay.buzz/stream/getSourcesNew?id=${dataIdMatch[1]}`,
           {
             headers: {
               "User-Agent": UA,
@@ -187,7 +230,9 @@ class MegaPlayBackupProvider implements StreamProvider {
         );
         if (!sourceRes.ok) continue;
         const data = await sourceRes.json();
-        const streamUrl = data.sources?.file;
+        let streamUrl = data.sources?.file;
+        if (!streamUrl && data.enc) streamUrl = decryptMegaPlaySource(data.enc);
+        if (!streamUrl && data.p) streamUrl = decryptMegaPlaySource(data.p);
         if (!streamUrl) continue;
 
         sources.push({
@@ -210,6 +255,92 @@ class MegaPlayBackupProvider implements StreamProvider {
     }
 
     return sources;
+  }
+}
+
+class AmvstrmProvider implements StreamProvider {
+  readonly name = "amvstrm";
+
+  async getEpisodeSources(ctx: SourceContext): Promise<StreamSource[]> {
+    if (!ctx.title) return [];
+    const episode = ctx.episode ?? 1;
+
+    try {
+      // Search by title
+      const searchRes = await fetchWithTimeout(
+        `${AMVSTRM_BASE}/api/v2/search?q=${encodeURIComponent(ctx.title)}`,
+        { headers: { "User-Agent": UA, Accept: "application/json" } },
+        10000
+      );
+      if (!searchRes.ok) return [];
+      const searchData = (await searchRes.json()) as {
+        status?: boolean;
+        results?: Array<{ id: string; title: string; jp_title?: string }>;
+      };
+      if (!searchData.status || !searchData.results?.length) return [];
+
+      // Try to find the best match
+      const query = ctx.title.toLowerCase();
+      let match = searchData.results[0];
+      for (const result of searchData.results) {
+        const t = (result.title || result.jp_title || "").toLowerCase();
+        if (t === query || query.includes(t) || t.includes(query)) {
+          match = result;
+          break;
+        }
+      }
+
+      // Get episodes
+      const epRes = await fetchWithTimeout(
+        `${AMVSTRM_BASE}/api/v2/episode/${match.id}`,
+        { headers: { "User-Agent": UA, Accept: "application/json" } },
+        10000
+      );
+      if (!epRes.ok) return [];
+      const epData = (await epRes.json()) as {
+        status?: boolean;
+        episodes?: Array<{ id: string; number: number; title?: string }>;
+      };
+      const ep = epData.episodes?.find((e) => e.number === episode);
+      if (!ep) return [];
+
+      // Get stream sources
+      const streamRes = await fetchWithTimeout(
+        `${AMVSTRM_BASE}/api/v2/stream/${ep.id}`,
+        { headers: { "User-Agent": UA, Accept: "application/json" } },
+        10000
+      );
+      if (!streamRes.ok) return [];
+      const streamData = (await streamRes.json()) as {
+        status?: boolean;
+        streams?: Array<{ url: string; quality: string; isM3U8?: boolean; type?: string }>;
+        subtitles?: Array<{ url: string; lang: string }>;
+      };
+
+      const sources: StreamSource[] = [];
+      for (const stream of streamData.streams || []) {
+        if (!stream.url) continue;
+        sources.push({
+          provider: this.name,
+          label: `AMVstrm ${stream.quality || "Auto"}${stream.type ? ` (${stream.type})` : ""}`,
+          url: stream.isM3U8 !== false && stream.url.includes(".m3u8")
+            ? `/api/stream/proxy?url=${encodeURIComponent(stream.url)}`
+            : stream.url,
+          intro: null,
+          outro: null,
+          subtitles: (streamData.subtitles || [])
+            .filter((s) => s.url)
+            .map((s) => ({
+              url: `/api/stream/proxy?url=${encodeURIComponent(s.url)}`,
+              label: s.lang,
+            })),
+        });
+      }
+
+      return sources;
+    } catch {
+      return [];
+    }
   }
 }
 
@@ -360,6 +491,7 @@ class ConsumetZoroProvider implements StreamProvider {
 
 export const megaPlayProvider = new MegaPlayProvider();
 export const megaPlayBackupProvider = new MegaPlayBackupProvider();
+export const amvstrmProvider = new AmvstrmProvider();
 export const consumetGogoProvider = new ConsumetGogoProvider();
 export const consumetZoroProvider = new ConsumetZoroProvider();
 
@@ -394,6 +526,7 @@ export class ProviderRegistry {
 export const defaultProviderRegistry = new ProviderRegistry()
   .register(megaPlayProvider)
   .register(megaPlayBackupProvider)
+  .register(amvstrmProvider)
   .register(consumetGogoProvider)
   .register(consumetZoroProvider);
 

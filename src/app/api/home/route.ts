@@ -49,7 +49,7 @@ export async function GET() {
             anilist_genres: meta.genres,
             anilist_synopsis: meta.synopsis,
             anilist_banner: meta.backdropImage?.includes("/banner/") ? meta.backdropImage : null,
-            anilist_cover: meta.coverImage?.replace("/medium/", "/large/"),
+            anilist_cover: meta.coverImage,
           };
           metaCache.set(cacheKey, { data: result, expiry: Date.now() + CACHE_TTL });
           return result;

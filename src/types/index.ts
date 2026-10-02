@@ -38,6 +38,7 @@ export interface Anime {
   episodeCount: number;
   broadcastDay?: string;
   broadcastTime?: string;
+  broadcastTimezone?: string;
   airingAt?: number;
   duration?: number;
   characters?: AnimeCharacter[];

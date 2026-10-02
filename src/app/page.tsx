@@ -6,6 +6,10 @@ import Image from "next/image";
 import { Play, Star, Clock, Sparkles, TrendingUp } from "lucide-react";
 import AnimeLoader from "@/components/ui/AnimeLoader";
 
+function placeholderImage(title: string, width: number, height: number): string {
+  return `https://placehold.co/${width}x${height}/18181b/71717a?text=${encodeURIComponent(title || "Anime")}`;
+}
+
 interface EnrichedAnime {
   id: number;
   title: string;
@@ -66,6 +70,9 @@ export default function Home() {
               sizes="100vw"
               className="object-cover blur-xl scale-110 opacity-40"
               priority
+              onError={(e) => {
+                (e.target as HTMLImageElement).src = placeholderImage(featured.title, 1920, 1080);
+              }}
             />
           </div>
 
@@ -82,6 +89,9 @@ export default function Home() {
                 sizes="280px"
                 className="object-cover"
                 priority
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = placeholderImage(featured.title, 400, 600);
+                }}
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
             </div>
@@ -164,6 +174,9 @@ export default function Home() {
                     fill
                     sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, 16vw"
                     className="object-cover transition-transform duration-300 group-hover:scale-110"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = placeholderImage(anime.title, 400, 600);
+                    }}
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-3">
                     <div className="flex items-center gap-1.5 rounded-lg bg-purple-600 px-3 py-1.5 text-xs font-medium text-white">
@@ -214,6 +227,9 @@ export default function Home() {
                     fill
                     sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, 16vw"
                     className="object-cover transition-transform duration-300 group-hover:scale-110"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = placeholderImage(anime.title, 400, 600);
+                    }}
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-3">
                     <div className="flex items-center gap-1.5 rounded-lg bg-white/20 backdrop-blur-sm px-3 py-1.5 text-xs font-medium text-white">

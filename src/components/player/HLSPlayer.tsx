@@ -63,6 +63,7 @@ export default function HLSPlayer({
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<unknown>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const triedSourcesRef = useRef<Set<number>>(new Set());
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -201,6 +202,7 @@ export default function HLSPlayer({
       return;
     }
 
+    triedSourcesRef.current.add(sourceIndex);
     setActiveSourceIndex(sourceIndex);
     setSubtitles(source.subtitles || []);
 
@@ -237,6 +239,31 @@ export default function HLSPlayer({
     }
 
     try {
+      const isHls = source.url.includes(".m3u8") || source.url.includes("/api/stream/proxy");
+
+      if (!isHls) {
+        // Direct MP4 or other native video URL
+        video.src = source.url;
+        video.addEventListener("loadedmetadata", () => {
+          setLoading(false);
+          if (autoPlay) video.play().catch(() => {});
+          setupSubtitles(source.subtitles);
+        }, { once: true });
+        video.addEventListener("error", () => {
+          setTimeout(() => {
+            const nextIndex = sources.findIndex((_, i) => !triedSourcesRef.current.has(i));
+            if (nextIndex >= 0) {
+              triedSourcesRef.current.add(nextIndex);
+              loadSource(nextIndex, true);
+            } else {
+              setError(PLAYER.sourceError);
+              setLoading(false);
+            }
+          }, 0);
+        }, { once: true });
+        return;
+      }
+
       const Hls = (await import("hls.js")).default;
       if (Hls.isSupported()) {
         const hls = new Hls({
@@ -270,8 +297,14 @@ export default function HLSPlayer({
 
         hls.on(Hls.Events.ERROR, (_: unknown, d: { fatal: boolean; type?: string }) => {
           if (d.fatal) {
-            setError(PLAYER.sourceError);
-            setLoading(false);
+            const nextIndex = sources.findIndex((_, i) => !triedSourcesRef.current.has(i));
+            if (nextIndex >= 0) {
+              triedSourcesRef.current.add(nextIndex);
+              loadSource(nextIndex, true);
+            } else {
+              setError(PLAYER.sourceError);
+              setLoading(false);
+            }
           }
         });
       } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
@@ -320,6 +353,7 @@ export default function HLSPlayer({
 
       setSources(data.sources);
       setActiveSourceIndex(0);
+      triedSourcesRef.current.clear();
     } catch {
       setError(PLAYER.sourceError);
       setLoading(false);

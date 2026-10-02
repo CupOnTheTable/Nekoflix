@@ -238,8 +238,8 @@ export default function WatchEpisodePage() {
         <div className="mx-auto grid max-w-7xl gap-4 px-4 lg:grid-cols-[1fr_320px]">
           <div className="min-w-0">
           <HLSPlayer
-            key={`mal-${id}-${selectedEp}-${language}`}
-            malId={id}
+            key={`ani-${id}-${selectedEp}-${language}`}
+            aniListId={id}
             seriesTitle={fallback.title}
             episodeNumber={selectedEp}
             language={language}

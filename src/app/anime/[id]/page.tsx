@@ -16,6 +16,15 @@ import { cn, getScoreColor } from "@/lib/utils";
 import AnimeLoader from "@/components/ui/AnimeLoader";
 import type { Anime } from "@/types";
 
+function placeholderBackdrop(title: string): string {
+  return `https://placehold.co/1920x1080/18181b/71717a?text=${encodeURIComponent(title || "Anime")}`;
+}
+
+function isBannerImage(url?: string): boolean {
+  if (!url) return false;
+  return url.includes("banner") || url.includes("1920") || url.includes("1200") || url.includes("anilist.co");
+}
+
 interface AnimeDetail extends Anime {
   characters?: {
     id: number;
@@ -133,14 +142,26 @@ export default function AnimeDetailPage() {
   return (
     <div className="min-h-screen bg-background">
       <div className="relative h-[30vh] min-h-[200px] w-full overflow-hidden sm:h-[40vh] sm:min-h-[300px]">
-        <Image
-          src={anime.backdropImage || anime.coverImage}
-          alt=""
-          fill
-          sizes="100vw"
-          className="object-cover"
-          priority
-        />
+        {isBannerImage(anime.backdropImage) ? (
+          <Image
+            src={anime.backdropImage!}
+            alt=""
+            fill
+            sizes="100vw"
+            className="object-cover"
+            priority
+            onError={(e) => {
+              (e.target as HTMLImageElement).src = placeholderBackdrop(anime.title);
+            }}
+          />
+        ) : (
+          <div
+            className="absolute inset-0 bg-cover bg-center"
+            style={{
+              backgroundImage: `url(${placeholderBackdrop(anime.title)})`,
+            }}
+          />
+        )}
         <div className="absolute inset-0 bg-gradient-to-t from-background via-background/70 to-transparent" />
         <div className="absolute inset-0 bg-gradient-to-r from-background via-background/50 to-transparent" />
 
@@ -164,6 +185,9 @@ export default function AnimeDetailPage() {
                   fill
                   sizes="(max-width: 640px) 176px, 224px"
                   className="object-cover"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = `https://placehold.co/400x600/18181b/71717a?text=${encodeURIComponent(anime.title || "Anime")}`;
+                  }}
                 />
               </div>
 
