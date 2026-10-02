@@ -1,8 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { rateLimit, getClientIp, rateLimitResponse } from "@/lib/rate-limit";
+
+const PROGRESS_LIMIT = 60;
+const PROGRESS_WINDOW_MS = 60 * 1000;
 
 export async function POST(req: NextRequest) {
+  const ip = getClientIp(req);
+  const limitResult = rateLimit(ip, PROGRESS_LIMIT, PROGRESS_WINDOW_MS, "progress");
+  if (!limitResult.success) {
+    return rateLimitResponse(limitResult);
+  }
+
   try {
     const user = await getCurrentUser();
     if (!user) {
@@ -46,6 +56,12 @@ export async function POST(req: NextRequest) {
 }
 
 export async function GET(req: NextRequest) {
+  const ip = getClientIp(req);
+  const limitResult = rateLimit(ip, PROGRESS_LIMIT, PROGRESS_WINDOW_MS, "progress-get");
+  if (!limitResult.success) {
+    return rateLimitResponse(limitResult);
+  }
+
   try {
     const user = await getCurrentUser();
     if (!user) {
@@ -60,12 +76,18 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Missing params" }, { status: 400 });
     }
 
+    const animeIdNum = Number(animeId);
+    const episodeNum = Number(episode);
+    if (!Number.isFinite(animeIdNum) || !Number.isFinite(episodeNum)) {
+      return NextResponse.json({ error: "Invalid params" }, { status: 400 });
+    }
+
     const progress = await prisma.watchProgress.findUnique({
       where: {
         userId_animeId_episode: {
           userId: user.id,
-          animeId: Number(animeId),
-          episode: Number(episode),
+          animeId: animeIdNum,
+          episode: episodeNum,
         },
       },
     });

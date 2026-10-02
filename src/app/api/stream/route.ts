@@ -1,9 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getEpisodeSources } from "@/lib/streaming";
+import { rateLimit, getClientIp, rateLimitResponse } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
+const STREAM_LIMIT = 30;
+const STREAM_WINDOW_MS = 60 * 1000;
+
 export async function GET(req: NextRequest) {
+  const ip = getClientIp(req);
+  const limitResult = rateLimit(ip, STREAM_LIMIT, STREAM_WINDOW_MS, "stream");
+  if (!limitResult.success) {
+    return rateLimitResponse(limitResult);
+  }
+
   const { searchParams } = new URL(req.url);
   const malId = searchParams.get("malId");
   const aniListId = searchParams.get("aniListId");

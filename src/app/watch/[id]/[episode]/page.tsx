@@ -7,7 +7,7 @@ import Image from "next/image";
 import { ArrowLeft, Play, Subtitles, Mic2, Check } from "lucide-react";
 import HLSPlayer from "@/components/player/HLSPlayer";
 import { cn } from "@/lib/utils";
-import { PLAYER } from "@/lib/i18n";
+import { PLAYER, COMMON } from "@/lib/i18n";
 
 interface Episode {
   number: number;
@@ -68,7 +68,7 @@ function EpisodeSidebar({
         </div>
         <div className="min-w-0">
           <p className="truncate text-sm font-semibold text-foreground">{seriesTitle}</p>
-          <p className="text-xs text-muted">{episodes.length} episodes</p>
+          <p className="text-xs text-muted">{episodes.length} {COMMON.episodes.toLowerCase()}</p>
         </div>
       </div>
       <div className="flex-1 overflow-y-auto p-2">
@@ -105,8 +105,8 @@ function EpisodeSidebar({
                     {cleanTitle(ep.title) || `Episode ${ep.number}`}
                   </p>
                   <p className="text-[10px] text-muted">
-                    {hasSub && "SUB "}
-                    {hasDub && "DUB "}
+                    {hasSub && `${COMMON.sub.toUpperCase()} `}
+                    {hasDub && `${COMMON.dub.toUpperCase()} `}
                     {!isAvailable && "Unavailable"}
                   </p>
                 </div>
@@ -200,7 +200,7 @@ export default function WatchEpisodePage() {
             <div className="absolute inset-0 animate-spin rounded-full border-4 border-transparent border-t-purple-500 border-r-pink-500" style={{ animationDuration: "1.2s" }} />
             <div className="absolute inset-2 animate-spin rounded-full border-4 border-transparent border-b-cyan-400 border-l-blue-400" style={{ animationDuration: "1.8s", animationDirection: "reverse" }} />
           </div>
-          <p className="text-sm text-muted">Loading anime...</p>
+          <p className="text-sm text-muted">{COMMON.loading}</p>
         </div>
       </div>
     );
@@ -214,7 +214,7 @@ export default function WatchEpisodePage() {
           onClick={() => router.back()}
           className="flex items-center gap-2 rounded-lg bg-surface px-4 py-2 text-sm text-muted hover:bg-surface-hover"
         >
-          <ArrowLeft className="h-4 w-4" /> Back
+          <ArrowLeft className="h-4 w-4" /> {COMMON.back}
         </button>
       </div>
     );
@@ -222,7 +222,7 @@ export default function WatchEpisodePage() {
 
   if (fallback && !series) {
     const totalEps = fallback.episodes || 24;
-    const episodeLabel = `Episode ${selectedEp}`;
+    const episodeLabel = `${COMMON.episode} ${selectedEp}`;
 
     return (
       <div className="min-h-screen bg-background kuro-animate-in">
@@ -231,7 +231,7 @@ export default function WatchEpisodePage() {
             href={`/anime/${id}`}
             className="inline-flex items-center gap-2 rounded-lg bg-surface/80 px-3 py-2 text-sm text-muted hover:bg-surface-hover backdrop-blur-sm"
           >
-            <ArrowLeft className="h-4 w-4" /> Back
+          <ArrowLeft className="h-4 w-4" /> {COMMON.back}
           </Link>
         </div>
 
@@ -261,7 +261,7 @@ export default function WatchEpisodePage() {
                     className="flex items-center gap-1.5 rounded-lg bg-surface-hover px-3 py-2 text-sm font-medium text-muted hover:text-foreground border border-border"
                   >
                     <Mic2 className="h-4 w-4" />
-                    {language === "sub" ? "SUB" : "DUB"}
+                    {language === "sub" ? COMMON.sub.toUpperCase() : COMMON.dub.toUpperCase()}
                   </button>
                 </div>
               </div>
@@ -325,7 +325,7 @@ export default function WatchEpisodePage() {
               <div>
                 <h1 className="text-xl font-bold text-foreground">{episodeLabel}</h1>
                 <p className="text-sm text-muted">
-                  Episode {selectedEp} of {totalEps}
+                  {COMMON.episode} {selectedEp} {COMMON.of} {totalEps}
                 </p>
               </div>
 
@@ -340,7 +340,7 @@ export default function WatchEpisodePage() {
                   )}
                 >
                   <Subtitles className="h-4 w-4" />
-                  Sub
+                  {COMMON.sub}
                 </button>
                 <button
                   onClick={() => setLanguage("dub")}
@@ -352,7 +352,7 @@ export default function WatchEpisodePage() {
                   )}
                 >
                   <Mic2 className="h-4 w-4" />
-                  Dub
+                  {COMMON.dub}
                 </button>
               </div>
             </div>
@@ -376,7 +376,7 @@ export default function WatchEpisodePage() {
       </div>
 
       <div className="mx-auto max-w-7xl px-4 pb-8 lg:hidden">
-        <h2 className="mb-3 text-lg font-bold text-foreground">Episodes</h2>
+        <h2 className="mb-3 text-lg font-bold text-foreground">{COMMON.episodes}</h2>
         <div className="grid grid-cols-4 gap-2 sm:grid-cols-6">
           {series.episodes.map((ep) => {
             const hasSub = !!ep.embed_url?.sub;

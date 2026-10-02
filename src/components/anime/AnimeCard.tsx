@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { Star } from "lucide-react";
 import type { Anime } from "@/types";
 
@@ -14,14 +15,15 @@ export default function AnimeCard({ anime }: AnimeCardProps) {
   return (
     <Link
       href={`/anime/${anime.id}`}
-      className="group relative flex flex-col rounded-xl overflow-hidden bg-zinc-900 border border-zinc-800 aspect-[3/4]"
+      className="group relative flex flex-col rounded-xl overflow-hidden bg-surface border border-border aspect-[3/4]"
     >
-      <img
+      <Image
         src={anime.coverImage}
         alt={anime.title}
+        fill
+        sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 16vw"
         loading="lazy"
-        decoding="async"
-        className="absolute inset-0 h-full w-full object-cover"
+        className="object-cover"
       />
 
       <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent" />

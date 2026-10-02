@@ -1,7 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchAnimeSearch } from "@/lib/jikan";
+import { rateLimit, getClientIp, rateLimitResponse } from "@/lib/rate-limit";
+
+const SEARCH_LIMIT = 60;
+const SEARCH_WINDOW_MS = 60 * 1000;
 
 export async function GET(request: NextRequest) {
+  const ip = getClientIp(request);
+  const limitResult = rateLimit(ip, SEARCH_LIMIT, SEARCH_WINDOW_MS, "search");
+  if (!limitResult.success) {
+    return rateLimitResponse(limitResult);
+  }
+
   try {
     const { searchParams } = new URL(request.url);
 

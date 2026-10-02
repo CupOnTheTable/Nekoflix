@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { useTheme } from "./ThemeProvider";
 import { cn } from "@/lib/utils";
 import NekoflixLogo from "@/components/ui/NekoflixLogo";
+import { NAV_LINKS as I18N_NAV, COMMON } from "@/lib/i18n";
 
 interface HeaderUser {
   name: string;
@@ -185,7 +186,7 @@ export default function Header({ user }: HeaderProps) {
                 type="button"
                 onClick={() => setThemeOpen(!themeOpen)}
                 className="flex items-center justify-center w-9 h-9 rounded-xl text-muted hover:text-foreground hover:bg-surface-hover transition-all"
-                aria-label="Theme"
+                aria-label={I18N_NAV.theme}
               >
                 <MoonIcon className="h-[18px] w-[18px]" />
               </button>
@@ -193,6 +194,7 @@ export default function Header({ user }: HeaderProps) {
                 <div className="absolute right-0 top-full mt-2 w-40 rounded-xl border border-border bg-surface shadow-xl py-1 z-50">
                   {([
                     { id: "dark" as const, label: "Dark", desc: "Zinc neutral" },
+                    { id: "light" as const, label: "Light", desc: "Clean light" },
                     { id: "midnight" as const, label: "Midnight", desc: "Deep blue" },
                     { id: "abyss" as const, label: "Abyss", desc: "OLED black" },
                   ]).map((opt) => (
@@ -209,6 +211,7 @@ export default function Header({ user }: HeaderProps) {
                       <span className={cn(
                         "h-3 w-3 rounded-full border-2",
                         opt.id === "dark" && "border-zinc-400 bg-zinc-600",
+                        opt.id === "light" && "border-slate-300 bg-white",
                         opt.id === "midnight" && "border-indigo-400 bg-indigo-600",
                         opt.id === "abyss" && "border-zinc-800 bg-black",
                       )} />
@@ -238,7 +241,7 @@ export default function Header({ user }: HeaderProps) {
               </Link>
             ) : (
               <Link href="/auth/login" className="rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 px-4 py-1.5 text-[13px] font-semibold text-white hover:from-purple-500 hover:to-pink-500 transition-all shadow-lg shadow-purple-600/20">
-                Sign In
+                {I18N_NAV.login}
               </Link>
             )}
           </div>
@@ -280,6 +283,7 @@ export default function Header({ user }: HeaderProps) {
               <div className="flex gap-1.5 px-3">
                 {([
                   { id: "dark" as const, label: "Dark", color: "bg-zinc-600 border-zinc-400" },
+                  { id: "light" as const, label: "Light", color: "bg-white border-slate-300" },
                   { id: "midnight" as const, label: "Midnight", color: "bg-indigo-600 border-indigo-400" },
                   { id: "abyss" as const, label: "Abyss", color: "bg-black border-zinc-800" },
                 ]).map((opt) => (

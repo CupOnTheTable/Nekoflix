@@ -9,12 +9,13 @@ import {
   type ReactNode,
 } from "react";
 
-type Theme = "dark" | "midnight" | "abyss";
+type Theme = "dark" | "light" | "midnight" | "abyss";
 
-const THEMES: Theme[] = ["dark", "midnight", "abyss"];
+const THEMES: Theme[] = ["dark", "light", "midnight", "abyss"];
 
 const THEME_LABELS: Record<Theme, string> = {
   dark: "Dark",
+  light: "Light",
   midnight: "Midnight",
   abyss: "Abyss",
 };
@@ -29,7 +30,7 @@ const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
 
 function applyTheme(theme: Theme) {
   const root = document.documentElement;
-  root.classList.remove("dark", "midnight", "abyss");
+  root.classList.remove("dark", "light", "midnight", "abyss");
   root.classList.add(theme);
 }
 

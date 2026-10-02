@@ -24,6 +24,7 @@ export const NAV_LINKS = {
   register: "Create account",
   account: "Account",
   logout: "Sign out",
+  theme: "Theme",
 };
 
 export const HOME = {
@@ -133,6 +134,30 @@ export const FOOTER = {
   credit: "Metadata by AniList · streams resolved server-side",
   disclaimer: "No files are hosted on this site.",
   legal: "Disclaimer",
+};
+
+export const COMMON = {
+  back: "Back",
+  watchNow: "Watch now",
+  addToList: "Add to list",
+  moreInfo: "More info",
+  loading: "Loading...",
+  episodes: "Episodes",
+  episode: "Episode",
+  of: "of",
+  sub: "Sub",
+  dub: "Dub",
+  search: "Search",
+  filter: "Filter",
+  clear: "Clear",
+  save: "Save",
+  cancel: "Cancel",
+  submit: "Submit",
+  remove: "Remove",
+  edit: "Edit",
+  close: "Close",
+  openMenu: "Open menu",
+  closeMenu: "Close menu",
 };
 
 export const FORM = {

@@ -24,6 +24,17 @@
   --muted: #71717a;
 }
 
+.light {
+  --background: #f8fafc;
+  --foreground: #0f172a;
+  --surface: #ffffff;
+  --surface-hover: #f1f5f9;
+  --border-color: #e2e8f0;
+  --accent: #dc2626;
+  --accent-hover: #b91c1c;
+  --muted: #64748b;
+}
+
 .midnight {
   --background: #0a0e1a;
   --foreground: #e8eaf0;
