@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PLAYER } from "@/lib/i18n";
+import MegaPlayer from "./MegaPlayer";
 
 interface Subtitle {
   url: string;
@@ -46,6 +47,14 @@ interface HLSPlayerProps {
 }
 
 const SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 2];
+
+function isEmbedUrl(url: string): boolean {
+  return /vidsrc\.|embed\.su|2embed|mega\.|youtube|streamtape|dood|filemoon/i.test(url);
+}
+
+function isVideoUrl(url: string): boolean {
+  return url.includes(".m3u8") || url.includes("/api/stream/proxy") || /\.(mp4|webm|ogg|mov)($|\?)/i.test(url);
+}
 
 export default function HLSPlayer({
   malId,
@@ -92,6 +101,7 @@ export default function HLSPlayer({
   const [nextCountdown, setNextCountdown] = useState(5);
   const [resumePrompt, setResumePrompt] = useState(false);
   const [resumeTime, setResumeTime] = useState(0);
+  const [iframeMode, setIframeMode] = useState(false);
   const controlsTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const introEndRef = useRef(0);
   const outroStartRef = useRef(0);
@@ -196,9 +206,18 @@ export default function HLSPlayer({
     clearTracks();
 
     const source = sources[sourceIndex];
-    if (!source) {
-      setError(PLAYER.sourceError);
-      setLoading(false);
+    if (!source || isEmbedUrl(source.url)) {
+      // skip iframe sources in HLS player; try next video source
+      const nextIndex = sources.findIndex((s, i) => !triedSourcesRef.current.has(i) && !isEmbedUrl(s.url));
+      if (nextIndex >= 0) {
+        triedSourcesRef.current.add(nextIndex);
+        loadSource(nextIndex, autoPlay);
+      } else if (sources.some((s) => isEmbedUrl(s.url))) {
+        setIframeMode(true);
+      } else {
+        setError(PLAYER.sourceError);
+        setLoading(false);
+      }
       return;
     }
 
@@ -251,10 +270,12 @@ export default function HLSPlayer({
         }, { once: true });
         video.addEventListener("error", () => {
           setTimeout(() => {
-            const nextIndex = sources.findIndex((_, i) => !triedSourcesRef.current.has(i));
+            const nextIndex = sources.findIndex((s, i) => !triedSourcesRef.current.has(i) && !isEmbedUrl(s.url));
             if (nextIndex >= 0) {
               triedSourcesRef.current.add(nextIndex);
               loadSource(nextIndex, true);
+            } else if (sources.some((s) => isEmbedUrl(s.url))) {
+              setIframeMode(true);
             } else {
               setError(PLAYER.sourceError);
               setLoading(false);
@@ -297,10 +318,12 @@ export default function HLSPlayer({
 
         hls.on(Hls.Events.ERROR, (_: unknown, d: { fatal: boolean; type?: string }) => {
           if (d.fatal) {
-            const nextIndex = sources.findIndex((_, i) => !triedSourcesRef.current.has(i));
+            const nextIndex = sources.findIndex((s, i) => !triedSourcesRef.current.has(i) && !isEmbedUrl(s.url));
             if (nextIndex >= 0) {
               triedSourcesRef.current.add(nextIndex);
               loadSource(nextIndex, true);
+            } else if (sources.some((s) => isEmbedUrl(s.url))) {
+              setIframeMode(true);
             } else {
               setError(PLAYER.sourceError);
               setLoading(false);
@@ -354,6 +377,7 @@ export default function HLSPlayer({
       setSources(data.sources);
       setActiveSourceIndex(0);
       triedSourcesRef.current.clear();
+      setIframeMode(false);
     } catch {
       setError(PLAYER.sourceError);
       setLoading(false);
@@ -658,6 +682,15 @@ export default function HLSPlayer({
             <RotateCw className="h-4 w-4" />
             {PLAYER.retry}
           </button>
+          {sources.some((s) => isEmbedUrl(s.url)) && (
+            <button
+              onClick={() => setIframeMode(true)}
+              className="flex items-center gap-2 rounded-lg bg-purple-600 px-4 py-2 text-sm text-white hover:bg-purple-500"
+            >
+              <Server className="h-4 w-4" />
+              Try external player
+            </button>
+          )}
           {sources.length > 1 && activeSourceIndex < sources.length - 1 && (
             <button
               onClick={tryNextSource}
@@ -675,6 +708,23 @@ export default function HLSPlayer({
         )}
       </div>
     );
+  }
+
+  if (iframeMode) {
+    const iframeSource = sources.find((s) => isEmbedUrl(s.url));
+    if (iframeSource) {
+      return (
+        <MegaPlayer
+          src={iframeSource.url}
+          title={title}
+          onNext={onNext}
+          onPrevious={onPrevious}
+          hasNext={hasNext}
+          hasPrevious={hasPrevious}
+          className={className}
+        />
+      );
+    }
   }
 
   const settingsContent = () => {

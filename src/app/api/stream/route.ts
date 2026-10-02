@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getEpisodeSources } from "@/lib/streaming";
+import { getEpisodeSources, defaultProviderRegistry } from "@/lib/streaming";
 import { rateLimit, getClientIp, rateLimitResponse } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
@@ -20,6 +20,7 @@ export async function GET(req: NextRequest) {
   const title = searchParams.get("title") || undefined;
   const episode = searchParams.get("episode");
   const language = (searchParams.get("lang") as "sub" | "dub") || "sub";
+  const debug = searchParams.get("debug") === "1";
 
   if (!malId && !aniListId) {
     return NextResponse.json(
@@ -29,23 +30,28 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const result = await getEpisodeSources({
+    const ctx = {
       malId: malId ? Number(malId) : undefined,
       aniListId: aniListId ? Number(aniListId) : undefined,
       title,
       episode: episode ? Number(episode) : 1,
       language,
-    });
+    };
+    console.log("[stream] resolving", JSON.stringify(ctx));
+    const result = await getEpisodeSources(ctx, defaultProviderRegistry, true);
+    console.log("[stream] providers", JSON.stringify(result.debug));
 
     if (result.sources.length === 0) {
-      return NextResponse.json(
-        { error: "No stream sources found" },
-        { status: 404 }
-      );
+      const response: Record<string, unknown> = { error: "No stream sources found" };
+      if (debug) response.debug = result.debug;
+      return NextResponse.json(response, { status: 404 });
     }
 
-    return NextResponse.json({ ok: true, ...result });
+    const response: Record<string, unknown> = { ok: true, ...result };
+    if (!debug) delete response.debug;
+    return NextResponse.json(response);
   } catch (err: unknown) {
+    console.error("[stream] error", err instanceof Error ? err.message : String(err));
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Stream resolution failed" },
       { status: 500 }

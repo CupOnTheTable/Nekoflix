@@ -29,6 +29,7 @@ export interface StreamSource {
 export interface EpisodeSourcesResult {
   sources: StreamSource[];
   episodes: { number: number; title: string | null; thumbnail: string | null }[];
+  debug?: { provider: string; status: string; detail?: string }[];
 }
 
 export interface SourceContext {
@@ -489,11 +490,63 @@ class ConsumetZoroProvider implements StreamProvider {
   }
 }
 
+class VidSrcProvider implements StreamProvider {
+  readonly name = "vidSrc";
+
+  async getEpisodeSources(ctx: SourceContext): Promise<StreamSource[]> {
+    const episode = ctx.episode ?? 1;
+    const ids: string[] = [];
+    if (ctx.malId) ids.push(String(ctx.malId));
+    if (ctx.aniListId) ids.push(String(ctx.aniListId));
+    if (ids.length === 0) return [];
+
+    const sources: StreamSource[] = [];
+    for (const id of ids) {
+      sources.push({
+        provider: this.name,
+        label: "VidSrc",
+        url: `https://vidsrc.cc/v2/embed/anime/${id}/${episode}`,
+        intro: null,
+        outro: null,
+        subtitles: [],
+      });
+      sources.push({
+        provider: this.name,
+        label: "VidSrc XYZ",
+        url: `https://vidsrc.xyz/embed/anime/${id}/${episode}`,
+        intro: null,
+        outro: null,
+        subtitles: [],
+      });
+    }
+    return sources;
+  }
+}
+
+class EmbedSuProvider implements StreamProvider {
+  readonly name = "embedSu";
+
+  async getEpisodeSources(ctx: SourceContext): Promise<StreamSource[]> {
+    const episode = ctx.episode ?? 1;
+    if (!ctx.malId) return [];
+    return [{
+      provider: this.name,
+      label: "EmbedSu",
+      url: `https://embed.su/embed/anime/${ctx.malId}/${episode}`,
+      intro: null,
+      outro: null,
+      subtitles: [],
+    }];
+  }
+}
+
 export const megaPlayProvider = new MegaPlayProvider();
 export const megaPlayBackupProvider = new MegaPlayBackupProvider();
 export const amvstrmProvider = new AmvstrmProvider();
 export const consumetGogoProvider = new ConsumetGogoProvider();
 export const consumetZoroProvider = new ConsumetZoroProvider();
+export const vidSrcProvider = new VidSrcProvider();
+export const embedSuProvider = new EmbedSuProvider();
 
 export class ProviderRegistry {
   private providers: StreamProvider[] = [];
@@ -503,23 +556,36 @@ export class ProviderRegistry {
     return this;
   }
 
-  async resolve(ctx: SourceContext): Promise<EpisodeSourcesResult> {
+  async resolve(ctx: SourceContext, debug = false): Promise<EpisodeSourcesResult> {
     const allSources: StreamSource[] = [];
+    const debugInfo: { provider: string; status: string; detail?: string }[] = [];
 
     for (const provider of this.providers) {
       try {
         const sources = await provider.getEpisodeSources(ctx);
-        for (const src of sources) {
-          if (!allSources.find((s) => s.url === src.url)) {
-            allSources.push(src);
-          }
+        const added = sources.filter((src) => !allSources.find((s) => s.url === src.url));
+        for (const src of added) allSources.push(src);
+        if (debug) {
+          debugInfo.push({
+            provider: provider.name,
+            status: sources.length > 0 ? "ok" : "empty",
+            detail: sources.length > 0 ? `${sources.length} source(s)` : "no sources",
+          });
         }
-      } catch {
-        // try next provider
+      } catch (err) {
+        if (debug) {
+          debugInfo.push({
+            provider: provider.name,
+            status: "error",
+            detail: err instanceof Error ? err.message : String(err),
+          });
+        }
       }
     }
 
-    return { sources: allSources, episodes: [] };
+    const result: EpisodeSourcesResult = { sources: allSources, episodes: [] };
+    if (debug) result.debug = debugInfo;
+    return result;
   }
 }
 
@@ -528,11 +594,14 @@ export const defaultProviderRegistry = new ProviderRegistry()
   .register(megaPlayBackupProvider)
   .register(amvstrmProvider)
   .register(consumetGogoProvider)
-  .register(consumetZoroProvider);
+  .register(consumetZoroProvider)
+  .register(vidSrcProvider)
+  .register(embedSuProvider);
 
 export async function getEpisodeSources(
   ctx: SourceContext,
-  registry = defaultProviderRegistry
+  registry = defaultProviderRegistry,
+  debug = false
 ): Promise<EpisodeSourcesResult> {
-  return registry.resolve(ctx);
+  return registry.resolve(ctx, debug);
 }
